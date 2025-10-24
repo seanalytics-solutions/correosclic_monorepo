@@ -614,12 +614,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     height: screenHeight * 0.22,
   },
+  //Ajustar margen del carrusel
   carouselImage: {
-    width: '100%',
+    width: '90%',
     height: '100%',
     resizeMode: 'cover',
-    borderRadius: moderateScale(8),
-  },
+    borderRadius: moderateScale(10),
+    alignSelf: 'center',
+    overflow: 'hidden',
+},
   pagination: {
     flexDirection: 'row',
     justifyContent: 'center',
