@@ -649,7 +649,7 @@ const styles = StyleSheet.create({
   lightboxIndex: { position: 'absolute', bottom: 24, color: 'white', fontWeight: '600' },
 });
 
-// ... (el componente ReviewForm permanece igual)
+// ... (el componente ReviewForm permanece igual...)
 function ReviewForm({
   productId,
   profileId,
