@@ -35,20 +35,26 @@ export class AuthService {
   ) {}
 
   async signup(dto: CreateUserDto) {
-    const hash = await bcrypt.hash(dto.contrasena, 10);
+    // 1. Validación de contraseña segura (Evita error si es undefined)
+    let hash = '';
+    if (dto.contrasena) {
+      hash = await bcrypt.hash(dto.contrasena, 10);
+    }
+
     const userExists = await this.usuariosService.findByCorreoNoOAuth(dto.correo);
 
     if (userExists) {
       throw new UnauthorizedException('El correo ya está en uso');
     }
 
-    // Creación de cliente en Stripe
+    // 2. Creación de cliente en Stripe (Versión corregida)
     const Stripe = require('stripe');
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
       apiVersion: '2025-06-30.basil',
     });
     const customer = await stripe.customers.create({
       name: dto.nombre || dto.correo.split('@')[0],
+      email: dto.correo, // Es buena práctica enviar el email a Stripe también
     });
 
     // Creación de perfil
@@ -64,11 +70,11 @@ export class AuthService {
       stripeCustomerId: customer.id,
     });
 
-    // Creación de usuario
+    // 4. Creación de usuario
     const user = await this.usuariosService.create({
       nombre: dto.nombre || dto.correo.split('@')[0],
       correo: dto.correo,
-      password: hash,
+      password: hash, // Puede ir vacío si vino de un flujo sin pass, pero el DTO lo maneja
       rol: 'usuario',
       profile,
     });
@@ -89,7 +95,7 @@ export class AuthService {
       nombre: user.nombre,
     });
 
-    // Generar token JWT
+    // 6. Generar token JWT
     const token = await this.jwtService.signAsync({
       profileId: user.profile.id,
       rol: 'usuario',
@@ -115,6 +121,7 @@ export class AuthService {
       });
       const customer = await stripe.customers.create({
         name: dto.nombre || dto.correo.split('@')[0],
+        email: dto.correo,
       });
 
       const profile = this.profileRepository.create({
@@ -132,9 +139,9 @@ export class AuthService {
       user = await this.usuariosService.create({
         nombre: dto.nombre || dto.correo.split('@')[0],
         correo: dto.correo,
-        password: 'N/A: OAuth',
+        password: 'N/A: OAuth', // Marcador para saber que es OAuth
         rol: 'usuario',
-        confirmado: true,
+        confirmado: true, // OAuth suele implicar email verificado
         profile,
       });
 
@@ -162,6 +169,7 @@ export class AuthService {
     if (!user || !user.password) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
+    
     if (user.confirmado === false) {
       throw new UnauthorizedException('Usuario no verificado');
     }
@@ -264,23 +272,13 @@ export class AuthService {
     });
   }
 
-  // @Cron(CronExpression.EVERY_5_MINUTES)
-  // async handleCleanExpiredTokens() {
-  //   this.logger.log('Iniciando limpieza de tokens expirados...');
-  //   try {
-  //     const cleanedCount = await this.usuariosService.cleanExpiredTokens();
-  //     this.logger.log(`Tokens expirados limpiados: ${cleanedCount}`);
-  //   } catch (error) {
-  //     this.logger.error('Error en limpieza de tokens expirados:', error.stack);
-  //   }
-  // }
-
-  //@Cron(CronExpression.EVERY_HOUR) // Destruir registros relacionados a usuarios no verificados
+  // Las tareas programadas (Cron) están comentadas por ahora, lo cual está bien si no las usas activamente
+  // para no saturar la consola en desarrollo.
+  
   async handleCleanUnverifiedUsers() {
     this.logger.log('Iniciando limpieza de usuarios no verificados...');
 
     try {
-      // Eliminar usuarios no verificados después de 24 horas
       const deletedCount = await this.usuariosService.cleanUnverifiedUsers();
       this.logger.log(`Usuarios no verificados eliminados: ${deletedCount}`);
     } catch (error) {
