@@ -5,7 +5,7 @@ module.exports = ({ config }) => ({
   expo: {
     name: "Correos de Mexico",
     slug: "correos-de-mexico",
-    version: "1.0.3",
+    version: "1.0.4",
     scheme: "correosdemexico",
     assetBundlePatterns: ["**/*"],
     orientation: "portrait",
