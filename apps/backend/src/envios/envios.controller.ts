@@ -25,11 +25,11 @@ export class EnviosController {
 
   @Get('unidad/:id')
   @ApiOperation({ summary: 'Obtener envíos asignados a una unidad (vehículo)' })
-  @ApiParam({ name: 'id', description: 'ID del vehículo', type: String })
+  @ApiParam({ name: 'id', description: 'ID del vehículo', type: Number })
   @ApiResponse({ status: 200, description: 'Lista de envíos por unidad', type: [Envio] })
   @ApiResponse({ status: 404, description: 'No se encontraron envíos para esta unidad' })
   @ApiResponse({ status: 500, description: 'Error interno del servidor' })
-  findByUnidad(@Param('id') id: string): Promise<Envio[]> {
+  findByUnidad(@Param('id') id: number): Promise<Envio[]> {
     return this.enviosService.findByUnidad(id);
   }
 
@@ -68,7 +68,7 @@ export class EnviosController {
   @ApiNotFoundResponse({ description: 'No se encontraron envíos pendientes para la unidad y el día de hoy.' })
   @ApiBadRequestResponse({ description: 'ID de unidad inválido.' })
   async iniciarRuta(
-    @Param('id') unidadId: string,
+    @Param('id') unidadId: number,
   ): Promise<{ updated: number }> {
     return this.enviosService.iniciarRuta(unidadId);
   }

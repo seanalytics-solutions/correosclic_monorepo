@@ -23,7 +23,7 @@ export class EnviosService {
     return this.envioRepository.find({ relations: ['guia', 'unidad'] });
   }
 
-  async findByUnidad(id: string): Promise<Envio[]> {
+  async findByUnidad(id: number): Promise<Envio[]> {
     return this.envioRepository.find({
       where: { unidad: { id } },
       relations: ['guia', 'unidad'],
@@ -123,7 +123,7 @@ export class EnviosService {
     return resultados;
   }
 
-  async iniciarRuta(unidadId: string): Promise<{ updated: number }> {
+  async iniciarRuta(unidadId: number): Promise<{ updated: number }> {
     const hoy = new Date();
     const inicioDelDia = new Date(hoy);
     inicioDelDia.setHours(0, 0, 0, 0);
