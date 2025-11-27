@@ -54,7 +54,6 @@ module.exports = ({ config }) => ({
       favicon: "./assets/icons_correos_mexico/square_correos_clic_Logo.png",
     },
     extra: {
-      IP_LOCAL: process.env.IP_LOCAL,
       eas: {
         projectId: "a0f0754d-99de-4334-a9be-935e19938c4a",
       },

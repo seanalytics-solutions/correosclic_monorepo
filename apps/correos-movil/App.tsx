@@ -3,18 +3,10 @@ import { NavigationContainer } from "@react-navigation/native";
 import { ClerkProvider } from "@clerk/clerk-expo";
 import AuthNavigator from "./navigation/authNavigator";
 import AppNavigator from "./navigation/appNavigatior";
-import VendedorNavigator from "./navigation/vendedorNavigator";
 import DistributorNavigator from "./navigation/distributorNavigator";
 import { AuthProvider, useMyAuth } from "./context/AuthContext";
 import { StripeProvider } from "@stripe/stripe-react-native";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
-
-const clerkKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
-const stripeKey = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY!;
-
-if (!clerkKey || !stripeKey) {
-  throw new Error("Missing API keys. Check your .env file");
-}
 
 function RootNavigation() {
   const { isAuthenticated, userRol } = useMyAuth();
@@ -36,10 +28,13 @@ function RootNavigation() {
 
 export default function App() {
   return (
-    <ClerkProvider tokenCache={tokenCache}>
+    <ClerkProvider
+      publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      tokenCache={tokenCache}
+    >
       <AuthProvider>
         <StripeProvider
-          publishableKey={stripeKey}
+          publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY}
           merchantIdentifier="merchant.com.tuapp"
         >
           <RootNavigation />
