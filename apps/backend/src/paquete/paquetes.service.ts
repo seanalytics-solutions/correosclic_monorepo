@@ -14,7 +14,7 @@ export class PaquetesService {
     return this.paqueteRepo.find();
   }
 
- async findOne(id: string): Promise<Paquete> {
+ async findOne(id: number): Promise<Paquete> {
     const paquete = await this.paqueteRepo.findOne({ where: { id } });
     if (!paquete) {
       throw new NotFoundException(`Paquete con ID ${id} no encontrado`);
@@ -27,12 +27,12 @@ export class PaquetesService {
     return this.paqueteRepo.save(nuevo);
   }
 
-  async update(id: string, data: Partial<Paquete>): Promise<Paquete> {
+  async update(id: number, data: Partial<Paquete>): Promise<Paquete> {
     await this.paqueteRepo.update(id, data);
     return this.findOne(id);
   }
 
-  async actualizarEstatus(id: string, nuevoEstatus: string): Promise<Paquete | null> {
+  async actualizarEstatus(id: number, nuevoEstatus: string): Promise<Paquete | null> {
     const paquete = await this.paqueteRepo.findOne({ where: { id } });
 
     if (!paquete) {
@@ -43,7 +43,7 @@ export class PaquetesService {
     return await this.paqueteRepo.save(paquete);
   }
 
-  async anadirEvidencia(id: string, urlEvidencia: string): Promise<Paquete | null> {
+  async anadirEvidencia(id: number, urlEvidencia: string): Promise<Paquete | null> {
     const paquete = await this.paqueteRepo.findOne({ where: { id } });
 
     if (!paquete) {
@@ -55,7 +55,7 @@ export class PaquetesService {
     return await this.paqueteRepo.save(paquete);
   }
 
-  remove(id: string) {
+  remove(id: number) {
     return this.paqueteRepo.delete(id);
   }
 }
