@@ -7,8 +7,8 @@ import { useCart } from '@/hooks/useCart'
 import { ResumenCompra } from '@/components/resumenCompra'
 import { CarrouselProducts } from '@/components/CarouselProducts'
 
-export default function page() {
-  const { Products } = useProducts();
+export default function Page() {
+  const { products } = useProducts();
   const { CartItems} = useCart();
 
   return (
@@ -17,7 +17,7 @@ export default function page() {
         <CartCard className='basis-2/3' cartItems={CartItems}/>
         <ResumenCompra className='basis-1/3 h-fit' />
       </div>
-      <CarrouselProducts entradas={Products} title='Tambien te podria interesar'/>
+      <CarrouselProducts entradas={products} title='Tambien te podria interesar'/>
     </Plantilla>
   )
 }

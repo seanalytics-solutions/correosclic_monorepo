@@ -14,7 +14,7 @@ import { CouponSheet } from './Componentes/CouponSheet'
 
 export default function Cupones() {
   const { Cupons, addCupon } = useCupons()
-  const { Products } = useProducts();
+  const { products } = useProducts();
   
   // Estado para cupones filtrados
   const [filteredCupons, setFilteredCupons] = useState<CuponProps[]>(Cupons)
@@ -52,7 +52,7 @@ export default function Cupones() {
     })
   }
 
-  const productsAvailables = Products.filter(
+  const productsAvailables = products.filter(
     product => !formData.ProductsId.includes(product.ProductID)
   )
 
@@ -107,7 +107,7 @@ export default function Cupones() {
                     />
                   </div>
                   {/* Productos */}
-                  {Products.length > 0 ? (
+                  {products.length > 0 ? (
                     <div className='space-y-3'>
                       <div className='flex items-center'>
                         <label className="block text-end text-sm font-medium text-gray-700 mb-1 basis-1/3 me-3">
@@ -132,7 +132,7 @@ export default function Cupones() {
                         <div className="ml-1/3 pl-3">
                           <div className="flex flex-wrap gap-2">
                             {formData.ProductsId.map((productId) => {
-                              const product = Products.find(p => p.ProductID === productId)
+                              const product = products.find(p => p.ProductID === productId)
                               return (
                                 <span
                                   key={productId}

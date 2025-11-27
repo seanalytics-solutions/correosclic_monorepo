@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { useAuth } from './useAuth';
 import { usuarioPorId, actualizarUsuarioPorId, uploadAvatar } from '@/services/profileService';
-import { SchemaProfileUser } from '@/schemas/schemas';
+import { User } from '@/schemas/auth';
 
 export const useProfile = () => {
   const { user, updateUser } = useAuth();
@@ -20,9 +20,9 @@ export const useProfile = () => {
       const profile = await usuarioPorId(id);
       // Actualizar el usuario en el estado de autenticación
       updateUser({
-        name: profile.name || profile.nombre,
-        email: profile.email || profile.correo,
-        avatar: profile.avatar || profile.imagen,
+        name: profile.name,
+        email: profile.email,
+        avatar: profile.avatar,
       });
       return profile;
     } catch (err) {
@@ -34,13 +34,13 @@ export const useProfile = () => {
     }
   };
 
-  const updateProfile = async (profileData: Partial<SchemaProfileUser>) => {
+  const updateProfile = async (profileData: Partial<User>) => {
     if (!user?.id) throw new Error('Usuario no autenticado');
 
     setIsLoading(true);
     setError(null);
     try {
-      const updatedProfile = await actualizarUsuarioPorId(profileData as SchemaProfileUser, user.id);
+      const updatedProfile = await actualizarUsuarioPorId(profileData as User, user.id);
       
       // Actualizar el usuario en el estado de autenticación
       updateUser({
