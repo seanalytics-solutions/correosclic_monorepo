@@ -22,13 +22,22 @@ import { Separator } from "./ui/separator";
 import { useFavorites } from "@/hooks/useFavorites";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from '@/hooks/useAuth';
+import { useSignIn, useUser, useClerk } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 
 const categories = ["Ropa", "Hogar", "Joyería y Bisutería", "Alimentos y Bebidas", "Belleza y Cuidado Personal", "Cocina", "Electronica", "Herramienta", "Artesanal"];
 
 export const Navbar = () => {
     const { Favorites, removeFromFavorites, getTotalFavorites } = useFavorites();
     const { CartItems, removeFromCart, getTotalItems, getSubtotal } = useCart();
-    const { user, isAuthenticated, login, logout, isLoading: authLoading } = useAuth();
+    const { user } = useAuth();
+    
+    // Clerk hooks para autenticación
+    const { isLoaded, signIn, setActive } = useSignIn();
+    const { isSignedIn, user: clerkUser } = useUser();
+    const { signOut } = useClerk();
+    const router = useRouter();
+    
     const [isMounted, setIsMounted] = useState(false);
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
     const [loginData, setLoginData] = useState({ email: '', password: '' });
@@ -58,16 +67,58 @@ export const Navbar = () => {
 
     const handleLoginSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        if (!isLoaded) return;
+        
         setLoginError(null);
         setIsLoggingIn(true);
 
         try {
-            await login(loginData);
-            handleDropdownClose();
-        } catch (error: any) {
-            setLoginError(error.message);
+            // Usar Clerk para autenticación igual que en page.tsx
+            const signInAttempt = await signIn.create({
+                identifier: loginData.email,
+                password: loginData.password,
+            });
+
+            if (signInAttempt.status === 'complete') {
+                await setActive({ session: signInAttempt.createdSessionId });
+                handleDropdownClose();
+                router.refresh();
+            } else {
+                console.log('Se requiere verificación adicional:', signInAttempt.status);
+            }
+        } catch (err: any) {
+            setLoginError(err.errors?.[0]?.message || 'Error al iniciar sesión');
         } finally {
             setIsLoggingIn(false);
+        }
+    };
+
+    const handleGoogleLogin = async () => {
+        if (!isLoaded) return;
+        
+        try {
+            await signIn.authenticateWithRedirect({
+                strategy: 'oauth_google',
+                redirectUrl: '/sso-callback',
+                redirectUrlComplete: '/',
+            });
+        } catch (err: any) {
+            setLoginError(err.errors?.[0]?.message || 'Error con Google');
+        }
+    };
+
+    const handleFacebookLogin = async () => {
+        if (!isLoaded) return;
+        
+        try {
+            await signIn.authenticateWithRedirect({
+                strategy: 'oauth_facebook',
+                redirectUrl: '/sso-callback',
+                redirectUrlComplete: '/',
+            });
+        } catch (err: any) {
+            setLoginError(err.errors?.[0]?.message || 'Error con Facebook');
         }
     };
 
@@ -397,15 +448,18 @@ export const Navbar = () => {
                 </DropdownMenu>
 
                 {/* Usuario - CON AUTENTICACIÓN REAL Y DEBUG */}
+
+
+
                 <DropdownMenu open={openDropdown === 'user'} onOpenChange={(open) => open ? handleDropdownToggle('user') : handleDropdownClose()}>
                     <DropdownMenuTrigger className="p-2 flex items-center justify-center hover:bg-gray-100 rounded-full text-gray-600 bg-[#F3F4F6] min-h-[40px] min-w-[40px] sm:min-h-[45px] sm:min-w-[45px] md:min-h-[51px] md:min-w-[54px]">
                         <IoPersonOutline className="w-4 h-4 sm:w-5 sm:h-5" />
                     </DropdownMenuTrigger>
                     
                     <DropdownMenuContent align="end" className="w-[260px] sm:w-[280px] p-3 sm:p-4">
-                        {!isAuthenticated ? (
-                            // Usuario NO autenticado - Mostrar formulario de login
-                            <div className="space-y-4">
+                        {!isSignedIn ? (
+                            // Usuario NO autenticado - Mostrar formulario de login con Clerk
+                            <div className="space-y-3">
                                 <h3 className="text-lg font-semibold text-gray-900 text-center">Iniciar Sesión</h3>
                                 
                                 {loginError && (
@@ -421,10 +475,10 @@ export const Navbar = () => {
                                             name="email"
                                             value={loginData.email}
                                             onChange={handleLoginChange}
-                                            placeholder="Email"
+                                            placeholder="Correo electrónico"
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#DE1484] text-sm"
                                             required
-                                            disabled={isLoggingIn}
+                                            disabled={isLoggingIn || !isLoaded}
                                         />
                                     </div>
                                     <div>
@@ -436,42 +490,95 @@ export const Navbar = () => {
                                             placeholder="Contraseña"
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#DE1484] text-sm"
                                             required
-                                            disabled={isLoggingIn}
+                                            disabled={isLoggingIn || !isLoaded}
                                         />
                                     </div>
+                                    
+                                    <div className="text-right">
+                                        <Link 
+                                            href="/recuperar-contrasena" 
+                                            className="text-xs text-gray-600 hover:underline"
+                                            onClick={handleDropdownClose}
+                                        >
+                                            ¿Olvidaste tu contraseña?
+                                        </Link>
+                                    </div>
+                                    
                                     <button 
                                         type="submit"
-                                        disabled={isLoggingIn}
-                                        className="w-full bg-[#DE1484] hover:bg-pink-700 text-white py-2 px-4 rounded-lg font-semibold transition-colors text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                        disabled={isLoggingIn || !isLoaded}
+                                        className="w-full bg-[#DE1484] hover:bg-pink-700 text-white py-2 px-4 rounded-full font-semibold transition-colors text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
                                     >
                                         {isLoggingIn ? 'Iniciando sesión...' : 'Iniciar Sesión'}
                                     </button>
                                 </form>
+
+                                {/* Separador */}
+                                <div className="flex items-center my-2">
+                                    <hr className="flex-grow border-gray-300" />
+                                    <span className="px-2 text-gray-400 text-xs">o</span>
+                                    <hr className="flex-grow border-gray-300" />
+                                </div>
+
+                                {/* Botones de OAuth */}
+                                <div className="space-y-2">
+                                    <button
+                                        onClick={handleFacebookLogin}
+                                        disabled={!isLoaded}
+                                        className="flex items-center justify-center w-full border border-gray-300 rounded-lg py-2 px-3 hover:bg-blue-50 transition duration-200 disabled:opacity-50"
+                                    >
+                                        <Image src="/facebook-icon.png" alt="Facebook" width={20} height={20} />
+                                        <span className="ml-2 text-sm text-gray-800 font-medium">
+                                            Facebook
+                                        </span>
+                                    </button>
+                                    
+                                    <button
+                                        onClick={handleGoogleLogin}
+                                        disabled={!isLoaded}
+                                        className="flex items-center justify-center w-full border border-gray-300 rounded-lg py-2 px-3 hover:bg-red-50 transition duration-200 disabled:opacity-50"
+                                    >
+                                        <Image src="/google-icon.png" alt="Google" width={20} height={20} />
+                                        <span className="ml-2 text-sm text-gray-800 font-medium">
+                                            Google
+                                        </span>
+                                    </button>
+                                </div>
                                 
-                                <div className="text-center">
-                                         <Link 
+                                <div className="text-center pt-2">
+                                    <Link 
                                         href="/registro"
                                         onClick={handleDropdownClose}
                                         className="text-[#DE1484] hover:text-pink-700 text-xs font-medium transition-colors"
-                                     >
+                                    >
                                         ¿No tienes cuenta? Regístrate
                                     </Link>
                                 </div>
                             </div>
                         ) : (
-                            // Usuario autenticado - Mostrar menú de usuario con datos reales
+                            // Usuario autenticado con Clerk - Mostrar menú de usuario
                             <div className="flex-col">
-                                {/* Header con info     del usuario real desde tu API */}
+                                {/* Header con info del usuario desde Clerk */}
                                 <div className="flex items-center mb-3 sm:mb-4">
-                                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#DE1484] rounded-full flex items-center justify-center text-white font-medium mr-2 sm:mr-3 text-sm">
-                                        {user?.name?.charAt(0).toUpperCase() || 'U'}
+                                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#DE1484] rounded-full flex items-center justify-center text-white font-medium mr-2 sm:mr-3 text-sm overflow-hidden">
+                                        {clerkUser?.imageUrl ? (
+                                            <Image 
+                                                src={clerkUser.imageUrl} 
+                                                alt="Avatar" 
+                                                width={48} 
+                                                height={48} 
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            clerkUser?.firstName?.charAt(0).toUpperCase() || 'U'
+                                        )}
                                     </div>
                                     <div className="flex-col">
                                         <div className="font-semibold text-sm sm:text-base">
-                                            {user?.name || 'Usuario'}
+                                            {clerkUser?.firstName || clerkUser?.username || 'Usuario'}
                                         </div>
                                         <div className="text-xs sm:text-sm text-gray-500">
-                                            {user?.email || 'user@example.com'}
+                                            {clerkUser?.primaryEmailAddress?.emailAddress || 'user@example.com'}
                                         </div>
                                     </div>
                                 </div>
@@ -529,11 +636,12 @@ export const Navbar = () => {
 
                                 <Separator className="my-3 sm:my-4" />
 
-                                {/* Botón cerrar sesión */}
+                                {/* Botón cerrar sesión - Usando Clerk */}
                                 <button 
-                                    onClick={() => {
-                                        logout();
+                                    onClick={async () => {
+                                        await signOut();
                                         handleDropdownClose();
+                                        router.push('/');
                                     }}
                                     className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors text-sm sm:text-base flex items-center justify-center gap-2"
                                 >

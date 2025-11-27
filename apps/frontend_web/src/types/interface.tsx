@@ -104,16 +104,17 @@ export interface ProductosProps {
   ProductBrand: string,
   ProductStatus: boolean,
   ProductStock: number,
-  ProductCategory: string,
+  ProductCategory: string | null;
   ProductSellerName: string,
   ProductSold: number,
-  variants: {
-    tipo: string,
-    price: number
-    valor: string,
-    inventario: number,
-    sku: string
-  }[]
+  Color: string,
+  // variants: {
+  //   tipo: string,
+  //   price: number
+  //   valor: string,
+  //   inventario: number,
+  //   sku: string
+  // }[]
   ProductCupons: number[]
 }
 
@@ -121,7 +122,7 @@ export type ItemCartProps = Pick<ProductosProps, 'ProductImageUrl'|'ProductName'
   prodcutQuantity?: number
 }
 
-export type FormProductProps = Pick<ProductosProps, 'ProductName' | 'ProductDescription' | 'ProductSlug' | 'ProductBrand' | 'ProductCategory' | 'variants' | 'productPrice'>
+export type FormProductProps = Pick<ProductosProps, 'ProductName' | 'ProductDescription' | 'ProductSlug' | 'ProductBrand' | 'ProductCategory' | 'productPrice'>
 
 export type ProductosPropsFront = Pick<ProductosProps, 'ProductBrand'| 'productPrice' | 'ProductCategory'| 'ProductSlug' | 'ProductID' | 'ProductImageUrl' | 'ProductName' | 'ProductSellerName' | 'ProductStatus' | 'ProductStock' | 'ProductSold'| 'ProductDescription'> & {
   variant?: 'full' | 'compact'
