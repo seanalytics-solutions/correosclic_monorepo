@@ -13,8 +13,8 @@ export enum EstadoEnvio {
 
 @Entity({ name: 'envios' })
 export class Envio {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
   @ManyToOne(() => GuiaTypeormEntity, guia => guia.envios, { nullable: false, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'id_guia' })

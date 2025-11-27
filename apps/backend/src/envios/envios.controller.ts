@@ -80,7 +80,7 @@ export class EnviosController {
   @ApiNotFoundResponse({ description: 'Envío no encontrado.' })
   @ApiBadRequestResponse({ description: 'Datos inválidos.' })
   marcarComoFallido(
-    @Param('id') id: string,
+    @Param('id') id: number,
     @Body() falloEnvioDto: FalloEnvioDto,
   ): Promise<Envio> {
     return this.enviosService.marcarComoFallido(id, falloEnvioDto.motivo_fallido);
@@ -95,7 +95,7 @@ export class EnviosController {
   @ApiNotFoundResponse({ description: 'Envío no encontrado' })
   @ApiBadRequestResponse({ description: 'Estado inválido' })
   async actualizarEstado(
-    @Param('id') id: string,
+    @Param('id') id: number,
     @Body() body: { estado: string, nombre_receptor: string }
   ) {
     const { estado, nombre_receptor } = body;
@@ -128,7 +128,7 @@ export class EnviosController {
   @ApiBadRequestResponse({ description: 'No se subió ningún archivo' })
   @ApiNotFoundResponse({ description: 'Envío no encontrado' })
   async anadirEvidencia(
-    @Param('id') id: string,
+    @Param('id') id: number,
     @UploadedFile() file: Express.Multer.File
   ) {
     if (!file) {

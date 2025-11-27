@@ -148,7 +148,7 @@ export class EnviosService {
     return { updated: result.affected };
   }
 
-  async marcarComoFallido(id: string, motivo: string): Promise<Envio> {
+  async marcarComoFallido(id: number, motivo: string): Promise<Envio> {
     const envio = await this.envioRepository.findOne({
       where: { id },
       relations: ['guia', 'unidad'],
@@ -224,7 +224,7 @@ export class EnviosService {
 
   }
 
-  async actualizarEstatus(id: string, nuevoEstatus: string, nombreReceptor: string): Promise<Envio | null> {
+  async actualizarEstatus(id: number, nuevoEstatus: string, nombreReceptor: string): Promise<Envio | null> {
     const envio = await this.envioRepository.findOne({ where: { id } });
 
     if (!envio) {
@@ -251,7 +251,7 @@ export class EnviosService {
     return await this.envioRepository.save(envio);
   }
 
-  async anadirEvidencia(id: string, url: string): Promise<Envio | null> {
+  async anadirEvidencia(id: number, url: string): Promise<Envio | null> {
     const envio = await this.envioRepository.findOne({ where: { id } });
 
     if (!envio) {
