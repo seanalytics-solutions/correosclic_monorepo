@@ -90,7 +90,7 @@ export default function SignInScreen() {
           strategy,
           redirectUrl: AuthSession.makeRedirectUri({
             scheme: "correosdemexico",
-            path: 'sso-callback' 
+            path: '' 
           }),
         })
 

@@ -54,7 +54,7 @@ export default function CustomSignIn() {
     try {
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_google',
-        redirectUrl: '/sso-callback',
+        redirectUrl: '/',
         redirectUrlComplete: '/',
       })
     } catch (err: any) {
@@ -68,7 +68,7 @@ export default function CustomSignIn() {
     try {
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_facebook',
-        redirectUrl: '/sso-callback',
+        redirectUrl: '/',
         redirectUrlComplete: '/',
       })
     } catch (err: any) {

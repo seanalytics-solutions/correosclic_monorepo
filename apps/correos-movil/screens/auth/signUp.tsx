@@ -243,7 +243,7 @@ export default function SignUpScreen() {
           strategy,
           redirectUrl: AuthSession.makeRedirectUri({
             scheme: "correosdemexico",
-            path: 'sso-callback' 
+            path: '' 
           }),
         })
 
