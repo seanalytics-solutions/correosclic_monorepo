@@ -15,7 +15,9 @@ const nextConfig: NextConfig = {
       'via.placeholder.com',
       'localhost',
       '192.168.1.98',
-      'img.clerk.com'
+      'img.clerk.com',
+      'correos-storage.emmanuelbayona.dev',
+      'res.cloudinary.com',
 
     ],
     remotePatterns: [

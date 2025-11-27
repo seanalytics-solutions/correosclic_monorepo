@@ -96,27 +96,39 @@ export const BackendCreateProductSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
+export const ProductImageSchema = z.object({
+  id: z.number(),
+  url: z.string(),
+  orden: z.number(),
+  productId: z.number(),
+})
+
 export const BackendProductEntitySchema = z.object({
   id: z.number(),
   nombre: z.string(),
   descripcion: z.string(),
   precio: z.number(),
   categoria: z.string().nullable(),
-  
-  // ✅ CAMPOS QUE SÍ TIENES (según el error)
   inventario: z.number(),
-  color: z.string().nullable(),
+  color: z.string(),
+  marca: z.string(),
+  slug: z.string(),
+  vendedor: z.string(),
+  estado: z.boolean(),
+  vendidos: z.number(),
+  sku: z.string(),
+  altura: z.number().nullable().optional(),
+  largo: z.number().nullable().optional(),
+  ancho: z.number().nullable().optional(),
+  peso: z.number().nullable().optional(),
+  idPerfil: z.number().nullable().optional(),
   
-  // ✅ IMAGEN como STRING (no como array de relaciones)
-  imagen: z.string().nullable(),
+  images: z.array(ProductImageSchema).optional().default([]),
   
-  // ✅ RELACIONES OPCIONALES (pueden venir o no)
-  images: z.array(z.any()).optional().default([]), // Por si acaso viene la relación
   favoritos: z.array(z.any()).optional().default([]),
   carrito: z.array(z.any()).optional().default([]),
   reviews: z.array(z.any()).optional().default([]),
 })
-
 
 
 // Tipos

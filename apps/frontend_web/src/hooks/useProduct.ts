@@ -1,6 +1,6 @@
 'use client'
 import { useProductsStore } from '../stores/useProductStore'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useHydration } from './useHydratyon'
 import type { FrontendProduct } from '@/schemas/products'
 import { productsApiService } from '@/services/productsApi'
@@ -8,12 +8,13 @@ import { productsApiService } from '@/services/productsApi'
 export const useProducts = () => {
   const store = useProductsStore()
   const isHydrated = useHydration()
+  const hasLoadedRef = useRef(false)
 
-    const [products, setProducts] = useState<FrontendProduct[]>([]);
+  const [products, setProducts] = useState<FrontendProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-    const loadProductsByCategory = useCallback(async (category: string) => {
+  const loadProductsByCategory = useCallback(async (category: string) => {
     try {
       setLoading(true);
       setError(null);
@@ -26,14 +27,15 @@ export const useProducts = () => {
       setLoading(false);
     }
   }, []);
-  
 
-
+  // ✅ CORREGIDO: Evitar loop infinito
   useEffect(() => {
-    if (store.products.length === 0 && !store.loading) {
+    // Solo cargar una vez al montar el componente
+    if (!hasLoadedRef.current && store.products.length === 0 && !store.loading) {
+      hasLoadedRef.current = true
       store.loadProducts()
     }
-  }, [store.products.length, store.loading, store.loadProducts])
+  }, []) // Sin dependencias - solo en mount
 
   const getProductsByCategory = useMemo(() => {
     return (category: string): FrontendProduct[] => {
@@ -44,8 +46,6 @@ export const useProducts = () => {
       )
     }
   }, [store.products])
-
-  
 
   const getFeaturedProducts = useMemo(() => {
     return (limit?: number): FrontendProduct[] => {
@@ -106,6 +106,11 @@ export const useProducts = () => {
     }
   }, [store.products])
 
+  // ✅ Memoizar loadProducts para evitar re-renders
+  const loadProducts = useCallback(() => {
+    store.loadProducts()
+  }, [store.loadProducts])
+
   return {
     // ===== STATE =====
     products: store.products,
@@ -115,7 +120,7 @@ export const useProducts = () => {
     isHydrated,
 
     // ===== API ACTIONS =====
-    loadProducts: store.loadProducts,
+    loadProducts,
     loadProduct: store.loadProduct,
     addProduct: store.addProduct,
     updateProduct: store.updateProduct,
@@ -129,7 +134,7 @@ export const useProducts = () => {
     getProduct: store.getProduct,
     hasSelectedProduct: store.hasSelectedProduct,
 
-    // ===== FUNCIONES DE FILTRADO RESTAURADAS =====
+    // ===== FUNCIONES DE FILTRADO =====
     getProductsByCategory,
     loadProductsByCategory,
     getFeaturedProducts,
@@ -144,7 +149,6 @@ export const useProducts = () => {
   }
 }
 
-// ... (El resto del archivo useFeaturedProducts y useProductById estaba bien, puedes dejarlo igual)
 export const useFeaturedProducts = (limit: number = 8) => {
   const [featuredProducts, setFeaturedProducts] = useState<FrontendProduct[]>([]);
   const [loading, setLoading] = useState(true);

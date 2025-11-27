@@ -38,6 +38,11 @@ export function mapBackendToFrontend(backendProduct: unknown): FrontendProduct {
       ProductImageUrl: imageUrl, // Desde images[0].url
       productPrice: validated.precio, // Ya convertido a number por Zod transform
       ProductCategory: validated.categoria || 'Sin categoría',
+      productStockQuantity: validated.inventario,
+      ProductColors: validated.color ? [validated.color] : ['#000000'],
+      ProductWeight: validated.peso,
+      ProductDimensions: `Altura: ${validated.altura || ''}`,
+      isActive: validated.estado,
       
       // === CAMPOS INVENTADOS PARA UI (no existen en tu BD) ===
       ProductStock: 100, // Valor por defecto - ajusta según tu necesidad
@@ -235,6 +240,7 @@ export function validateBackendProductsArray(products: unknown[]): FrontendProdu
   
   if (errors.length > 0) {
     console.warn(`⚠️ Se encontraron ${errors.length} productos con errores:`, errors)
+    throw new Error(`Errores de validación en productos: \n${errors.join('\n')}`)
   }
   
   console.log(`✅ ${validProducts.length} productos válidos de ${products.length} totales`)
