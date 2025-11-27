@@ -18,26 +18,26 @@ const cardData = [
     description:
       "Envía tus cartas, documentos o tarjetas a cualquier parte del mundo.",
     imageUrl: require("../../../../assets/correspondencia.jpg"), // Ruta actualizada por el usuario
-    link: "CorrespondenciaInter",
+    link: "correspondencia",
   },
   {
     title: "Paquetería Internacional",
     description: "Exporta productos y mercancías a más de 180 países.",
     imageUrl: require("../../../../assets/paquete.jpg"), // Ruta actualizada por el usuario
-    link: "PaqueteriaInter",
+    link: "tarifasParaEnviosPaqueteria",
   },
   {
     title: "Impresos Internacional",
     description:
       "Haz crecer tu negocio enviando nuestro material de impresión a distintos países.",
     imageUrl: require("../../../../assets/impresos2.png"), // Ruta actualizada por el usuario
-    link: "ImpresosInter",
+    link: "impresos",
   },
   {
     title: "Servicios Adicionales Internacionales",
     description: "Conoce todos los servicios especiales que tenemos para ti.",
     imageUrl: require("../../../../assets/adicionales.jpg"), // Ruta actualizada por el usuario
-    link: "ServiciosAdicionalesInter",
+    link: "servicios_adicionales",
   },
 ];
 // --- FIN DE DATOS ---
