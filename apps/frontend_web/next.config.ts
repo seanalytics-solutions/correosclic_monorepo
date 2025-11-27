@@ -14,7 +14,9 @@ const nextConfig: NextConfig = {
       'correos-de-mexico.s3.us-east-2.amazonaws.com',
       'via.placeholder.com',
       'localhost',
-      '192.168.1.98'
+      '192.168.1.98',
+      'img.clerk.com'
+
     ],
     remotePatterns: [
       {

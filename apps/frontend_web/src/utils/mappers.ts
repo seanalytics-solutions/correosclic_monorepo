@@ -108,6 +108,7 @@ export function mapFrontendToCreateDto(frontendProduct: Partial<FrontendProduct>
       categoria: safeString(frontendProduct.ProductCategory, 'Sin categoría'),
       inventario: Math.max(0, Math.floor(safeNumber(frontendProduct.ProductStock, 0))),
       color: safeString(frontendProduct.Color, '#000000'),
+      isActive: frontendProduct.ProductStatus !== undefined ? frontendProduct.ProductStatus : true,
       // imagen se maneja por separado en tu servicio con archivos
     }
     

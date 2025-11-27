@@ -26,7 +26,7 @@ export const FavoritesList: React.FC = () => {
           <FavoriteProductCard
             key={product.ProductID}
             productId={product.ProductID}
-            image={product.ProductImageUrl}
+            image={product.ProductImageUrl ?? ""}
             title={product.ProductName}
             price={product.productPrice}
             available={product.ProductStatus}

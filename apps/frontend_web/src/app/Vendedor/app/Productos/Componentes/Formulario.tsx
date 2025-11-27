@@ -194,9 +194,17 @@ export const Formulario: React.FC = () => {
         ProductSellerName: 'Admin',
         ProductSold: 0,
         ProductCupons: [],
-        variants: formData.variants.filter(
-          (v) => v.valor.trim() !== '' && v.inventario > 0
-        ),
+        // campos añadidos para cumplir con la definición de FrontendProduct
+        productStockQuantity: totalStock,
+        ProductColors: formData.variants
+          .filter((v) => v.tipo === 'Color' && v.valor.trim() !== '')
+          .map((v) => v.valor),
+        ProductWeight: 0,
+        ProductDimensions: '',
+        isActive: true,
+        // variants: formData.variants.filter(
+        //   (v) => v.valor.trim() !== '' && v.inventario > 0
+        // ),
       };
 
       // Subir la imagen (si hay) y asignar el key

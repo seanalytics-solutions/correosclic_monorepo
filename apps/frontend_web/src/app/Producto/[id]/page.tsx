@@ -72,7 +72,7 @@ export default function ProductDetailPage() {
 
   return (
     <Plantilla>
-      <ProductDetails product={product} />
+      <ProductDetails {...product} />
     </Plantilla>
   );
 }

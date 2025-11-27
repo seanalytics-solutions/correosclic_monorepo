@@ -75,7 +75,6 @@ export const ProductCard = ({ ProductID, ProductImage, ProductColors, ProductNam
             width={600}
             height={800}
             className="w-full h-full object-contain transition-transform duration-500 group-hover/card:scale-105 mix-blend-multiply"
-            priority={false}
           />
         </div>
       </Link>
@@ -141,7 +140,6 @@ export const ColectionCard = ({ ProductID, ProductImage, ProductName, onClick }:
             width={500}
             height={600}
             className="w-full h-full object-contain transition-transform duration-500 group-hover/card:scale-110 mix-blend-multiply"
-            priority={false}
           />
         </div>
 

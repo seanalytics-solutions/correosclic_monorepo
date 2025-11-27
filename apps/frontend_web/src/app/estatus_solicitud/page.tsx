@@ -3,9 +3,9 @@
 import { useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Plantilla } from '@/components/plantilla';
-import React from 'react';
+import React, { Suspense } from 'react';
 
-const EstatusSolicitud: React.FC = () => {
+const EstatusSolicitudContent: React.FC = () => {
   const searchParams = useSearchParams();
   const seguimiento = searchParams.get('seguimiento') || 'N/A';
   const fecha = searchParams.get('fecha') || 'N/A';
@@ -15,7 +15,7 @@ const EstatusSolicitud: React.FC = () => {
   const tiempoEstimado = '2 a 3 días hábiles';
 
   return (
-    <Plantilla>
+    <>
       <div className="min-h-screen flex flex-col items-center justify-start px-6 py-12 bg-white">
         <h1 className="text-3xl font-bold text-center mb-8">
           Estatus de <span className="text-pink-500">solicitud</span>
@@ -57,6 +57,16 @@ const EstatusSolicitud: React.FC = () => {
         {/* Línea inferior decorativa */}
         <div className="mt-12 h-3 w-3/4 rounded-full bg-gray-200" />
       </div>
+    </>
+  );
+};
+
+const EstatusSolicitud: React.FC = () => {
+  return (
+    <Plantilla>
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Cargando...</div>}>
+        <EstatusSolicitudContent />
+      </Suspense>
     </Plantilla>
   );
 };
