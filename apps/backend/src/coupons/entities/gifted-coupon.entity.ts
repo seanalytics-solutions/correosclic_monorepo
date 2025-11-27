@@ -3,8 +3,8 @@ import { User } from '../../usuarios/entities/user.entity';
 
 @Entity('gifted_coupons')
 export class GiftedCouponEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
   @ManyToOne(() => User, (user) => user.giftedCoupons)
   @JoinColumn({ name: 'user_id' })
   user: User;
