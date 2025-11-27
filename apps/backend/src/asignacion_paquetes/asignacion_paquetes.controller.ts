@@ -12,10 +12,10 @@ export class AsignacionPaquetesController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Obtener una asignación por ID' })
-  @ApiParam({ name: 'id', type: 'string', description: 'ID de la asignación' })
+  @ApiParam({ name: 'id', type: 'number', description: 'ID de la asignación' })
   @ApiResponse({ status: 200, description: 'Asignación encontrada', type: AsignacionPaquetes })
   @ApiResponse({ status: 404, description: 'Asignación no encontrada' })
-  findOne(@Param('id') id: string): Promise<AsignacionPaquetes | null> {
+  findOne(@Param('id') id: number): Promise<AsignacionPaquetes | null> {
     return this.asignacionService.findOne(id);
   }
 
@@ -30,12 +30,12 @@ export class AsignacionPaquetesController {
 
   @Put(':id')
   @ApiOperation({ summary: 'Actualizar una asignación de paquete' })
-  @ApiParam({ name: 'id', type: 'string', description: 'ID de la asignación a actualizar' })
+  @ApiParam({ name: 'id', type: 'number', description: 'ID de la asignación a actualizar' })
   @ApiBody({ type: AsignacionPaquetes })
   @ApiResponse({ status: 200, description: 'Asignación actualizada', type: AsignacionPaquetes })
   @ApiResponse({ status: 404, description: 'Asignación no encontrada' })
   update(
-    @Param('id') id: string,
+    @Param('id') id: number,
     @Body() data: Partial<AsignacionPaquetes>,
   ): Promise<AsignacionPaquetes | null> {
     return this.asignacionService.update(id, data);
@@ -43,9 +43,9 @@ export class AsignacionPaquetesController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar una asignación de paquete' })
-  @ApiParam({ name: 'id', type: 'string', description: 'ID de la asignación a eliminar' })
+  @ApiParam({ name: 'id', type: 'number', description: 'ID de la asignación a eliminar' })
   @ApiResponse({ status: 204, description: 'Asignación eliminada' })
-  remove(@Param('id') id: string) {
+  remove(@Param('id') id: number) {
     return this.asignacionService.remove(id);
   }
 }

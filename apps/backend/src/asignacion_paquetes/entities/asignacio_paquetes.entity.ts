@@ -10,8 +10,8 @@ import { Paquete } from '../../paquete/entities/paquete.entity';
 
 @Entity('asignacion_paquetes')
 export class AsignacionPaquetes {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
   @CreateDateColumn({ name: 'fecha_asignacion' })
   fecha_asignacion: Date;
