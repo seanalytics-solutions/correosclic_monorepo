@@ -11,7 +11,7 @@ export class AsignacionPaquetesService {
   ) {}
 
 
-  findOne(id: string) {
+  findOne(id: number) {
     return this.asignacionRepo.findOne({
       where: { id },
       relations: ['idPaquete', 'idTransporte', 'idRuta'],
@@ -23,12 +23,12 @@ export class AsignacionPaquetesService {
     return this.asignacionRepo.save(nuevaAsignacion);
   }
 
-  async update(id: string, data: Partial<AsignacionPaquetes>) {
+  async update(id: number, data: Partial<AsignacionPaquetes>) {
     await this.asignacionRepo.update(id, data);
     return this.findOne(id);
   }
 
-  remove(id: string) {
+  remove(id: number) {
     return this.asignacionRepo.delete(id);
   }
 }

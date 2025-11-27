@@ -6,7 +6,8 @@ type GuiaPdfPayload = ReturnType<typeof GuiaMapper.toPdfPayload>;
 export const plantillaGuiaNacional = async (
   guiaData: GuiaPdfPayload,
   qrCodeDataURL: string,
-): Promise<any> => { // <--- AGREGAR ESTO AQUÍ TAMBIÉN
+): Promise<any> => {
+  // <--- AGREGAR ESTO AQUÍ TAMBIÉN
   const { Document, Page, Text, View, StyleSheet, Image } = await import(
     '@react-pdf/renderer'
   );
@@ -399,10 +400,10 @@ export const plantillaGuiaNacional = async (
               Text,
               { style: styles.instructionsText },
               'Para la entrega del paquete se requiere:\n' +
-              '• Identificación oficial vigente\n' +
-              '• Firma de recibido del destinatario\n' +
-              '• Verificación de datos personales\n' +
-              '• Presencia del destinatario o autorizado',
+                '• Identificación oficial vigente\n' +
+                '• Firma de recibido del destinatario\n' +
+                '• Verificación de datos personales\n' +
+                '• Presencia del destinatario o autorizado',
             ),
           ),
           createElement(

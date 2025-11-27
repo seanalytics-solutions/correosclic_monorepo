@@ -3,8 +3,8 @@ import { Product } from '../../products/entities/product.entity';
 
 @Entity('created_coupons')
 export class CreatedCouponEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
   @ManyToOne(() => Product, (product) => product.createdCoupons)
   @JoinColumn({ name: 'product_id' })
   product: Product;

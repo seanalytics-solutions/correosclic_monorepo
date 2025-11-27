@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { Profile } from '../../profile/entities/profile.entity';
 import { Product } from '../../products/entities/product.entity';
+import { Complaint } from '../../complaints/entities/complaint.entity';
 import { Misdireccione } from '../../misdirecciones/entities/misdireccione.entity';
 @Entity()
 export class Pedido {
@@ -21,24 +22,34 @@ export class Pedido {
   @Column()
   status: string;
 
-  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)' })
+  @CreateDateColumn({
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP(6)',
+  })
   fecha: Date;
 
   @ManyToOne(() => Profile, (profile) => profile.id, { nullable: false })
   @JoinColumn({ name: 'profileId' })
   profile: Profile;
 
+  @OneToMany(() => Complaint, (complaint) => complaint.id, { nullable: true })
+  @JoinColumn({ name: 'complaintId' })
+  complaint?: Complaint;
+
   @Column()
   profileId: number;
 
-  @OneToMany(() => PedidoProducto, (pp) => pp.pedido, { cascade: true, eager: true })
+  @OneToMany(() => PedidoProducto, (pp) => pp.pedido, {
+    cascade: true,
+    eager: true,
+  })
   productos: PedidoProducto[];
 
   @ManyToOne(() => Misdireccione, { nullable: true })
   @JoinColumn({ name: 'direccionId' })
   direccion: Misdireccione;
 
-  @Column( { nullable: true })
+  @Column({ nullable: true })
   direccionId: number;
 
   @Column({ nullable: true })
@@ -77,20 +88,25 @@ export class PedidoProducto {
   @Column('int')
   cantidad: number;
 
-  @ManyToOne(() => Product, (productos) => productos.id, { eager: true, cascade: true })
+  @ManyToOne(() => Product, (productos) => productos.id, {
+    eager: true,
+    cascade: true,
+  })
   @JoinColumn({ name: 'productoId' })
   producto: Product;
 
   @Column()
   productoId: number;
 
-  @ManyToOne(() => Pedido, (pedido) => pedido.productos, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Pedido, (pedido) => pedido.productos, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'pedidoId' })
   pedido: Pedido;
 
   @Column()
   pedidoId: number;
-  
+
   @Column({ nullable: true })
   n_guia: string;
 }
