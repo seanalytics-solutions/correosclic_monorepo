@@ -1,4 +1,4 @@
-import { IsUUID, IsNumber } from 'class-validator';
+import { IsUUID } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateEnvioDto {
@@ -7,6 +7,6 @@ export class CreateEnvioDto {
   guiaId: string;
 
   @ApiProperty({ description: 'ID de la unidad' })
-  @IsNumber()
-  unidadId: number;
+  @IsUUID()
+  unidadId: string;
 }

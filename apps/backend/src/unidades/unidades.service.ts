@@ -425,7 +425,7 @@ export class UnidadesService {
     };
   }
 
-  async findOne(id: number): Promise<Unidad> {
+  async findOne(id: string): Promise<Unidad> {
     const unidad = await this.unidadRepo.findOne({ where: { id }, relations: ['asignada', 'oficina'] });
     if (!unidad) {
       throw new NotFoundException(`Unidad con ID ${id} no encontrada`);

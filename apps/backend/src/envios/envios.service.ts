@@ -25,7 +25,7 @@ export class EnviosService {
 
   async findByUnidad(id: string): Promise<Envio[]> {
     return this.envioRepository.find({
-      where: { unidad: { id: parseInt(id) } },
+      where: { unidad: { id } },
       relations: ['guia', 'unidad'],
     });
   }
@@ -133,7 +133,7 @@ export class EnviosService {
 
     const result = await this.envioRepository.update(
       {
-        unidad: { id: parseInt(unidadId) },
+        unidad: { id: unidadId },
         fecha_entrega_programada: Between(inicioDelDia, finDelDia),
         estado_envio: EstadoEnvio.PENDIENTE,
       },
