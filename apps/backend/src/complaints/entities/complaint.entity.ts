@@ -1,4 +1,4 @@
-import { Pedido } from 'src/pedidos/entities/pedido.entity';
+import { Pedido, PedidoProducto } from 'src/pedidos/entities/pedido.entity';
 import { Profile } from '../../profile/entities/profile.entity';
 import {
   Entity,
@@ -6,6 +6,8 @@ import {
   ManyToOne,
   Column,
   CreateDateColumn,
+  ManyToMany,
+  JoinTable,
   UpdateDateColumn,
   JoinColumn,
 } from 'typeorm';
@@ -54,6 +56,17 @@ export class Complaint {
   })
   @JoinColumn({ name: 'profile_id' })
   profile: Profile;
+
+  @ManyToMany(() => PedidoProducto)
+  @JoinTable({
+    name: 'complaint_products', // Tabla intermedia
+    joinColumn: { name: 'complaint_id', referencedColumnName: 'id' },
+    inverseJoinColumn: {
+      name: 'pedido_producto_id',
+      referencedColumnName: 'id',
+    },
+  })
+  defectiveProducts?: PedidoProducto[];
 
   @Column({
     type: 'enum',
