@@ -91,7 +91,7 @@ export class UnidadesController {
   @ApiParam({ name: 'id', description: 'ID de la unidad' })
   @ApiResponse({ status: 200, description: 'Unidad encontrada', type: Unidad })
   @ApiResponse({ status: 404, description: 'Unidad no encontrada' })
-  findOne(@Param('id') id: number) {
+  findOne(@Param('id') id: string) {
     return this.unidadesService.findOne(id);
   }
 }
