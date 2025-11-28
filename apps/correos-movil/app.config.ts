@@ -27,6 +27,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           },
         ],
       },
+      config: {
+        googleMapsApiKey: "AIzaSyCPZIMEqvZ9uPX-dmlY-FGY1ahKQ1BRDmU",
+      },
     },
     android: {
       adaptiveIcon: {
@@ -49,6 +52,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         },
       ],
       permissions: ["android.permission.CAMERA"],
+      config: {
+        googleMaps: {
+          apiKey: "AIzaSyCPZIMEqvZ9uPX-dmlY-FGY1ahKQ1BRDmU",
+        },
+      },
     },
     web: {
       favicon: "./assets/icons_correos_mexico/square_correos_clic_Logo.png",
