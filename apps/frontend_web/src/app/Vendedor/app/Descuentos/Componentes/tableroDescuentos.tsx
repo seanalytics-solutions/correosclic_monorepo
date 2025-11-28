@@ -8,7 +8,7 @@ import {
 import { DescuentoProps } from "../../../../../types/interface"
 import { Separator } from "../../../../../components/ui/separator"
 import { DiscountSheet } from "./DiscountSheet"
-import { Descuento } from "../../../components/primitivos"
+// import { Descuento } from "../../../components/primitivos"
 
 interface TablerDescuentosProps {
   entradas: DescuentoProps[]
@@ -22,7 +22,7 @@ export default function TablerDescuentos({ entradas, variant = "full" }: TablerD
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Descuento</TableHead>
+              {/* <TableHead>Descuento</TableHead> */}
               <TableHead>Veces Usado</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Fecha de Expiración</TableHead>
@@ -30,7 +30,7 @@ export default function TablerDescuentos({ entradas, variant = "full" }: TablerD
             </TableRow>
           </TableHeader>
           <TableBody>
-            {entradas.map((entrada) => (
+            {/* {entradas.map((entrada) => (
               <Descuento
                 key={entrada.DescuentoID}
                 variant="full"
@@ -40,7 +40,7 @@ export default function TablerDescuentos({ entradas, variant = "full" }: TablerD
                 DescuentoStatus={entrada.DescuentoStatus}
                 EndDate={entrada.EndDate}
               />
-            ))}
+            ))} */}
           </TableBody>
         </Table>
       </div>
@@ -52,7 +52,7 @@ export default function TablerDescuentos({ entradas, variant = "full" }: TablerD
       <div className="space-y-2">
         {entradas.slice(0, 5).map((entrada, index) => (
           <div key={entrada.DescuentoID}>
-            <Descuento
+            {/* <Descuento
               variant="compact"
               DescuentoID={entrada.DescuentoID}
               DescuentoName={entrada.DescuentoName}
@@ -62,7 +62,7 @@ export default function TablerDescuentos({ entradas, variant = "full" }: TablerD
             />
             {index < Math.min(entradas.length, 5) - 1 && (
               <Separator className="my-2" />
-            )}
+            )} */}
           </div>
         ))}
       </div>

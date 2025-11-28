@@ -1,8 +1,8 @@
 // services/profileService.ts
-import { SchemaProfileUser } from '@/schemas/schemas';
+import { User } from '@/schemas/auth';
 
 // Obtener perfil por ID (igual que en tu app)
-export async function usuarioPorId(id: number): Promise<SchemaProfileUser> {
+export async function usuarioPorId(id: number): Promise<User> {
   const url = `${process.env.NEXT_PUBLIC_API_URL}/api/profile/${id}`;
 
   const response = await fetch(url);
@@ -16,7 +16,7 @@ export async function usuarioPorId(id: number): Promise<SchemaProfileUser> {
 }
 
 // Actualizar campos del perfil (PATCH) - igual que en tu app
-export async function actualizarUsuarioPorId(userData: SchemaProfileUser, id: number) {
+export async function actualizarUsuarioPorId(userData: User, id: number) {
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile/${id}`, {
     method: "PATCH",
     headers: {

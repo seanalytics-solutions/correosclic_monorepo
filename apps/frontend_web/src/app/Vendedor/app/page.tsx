@@ -12,7 +12,7 @@ import { useProducts } from "@/hooks/useProduct";
 import { Button } from "@/components/ui/button";
 
 export default function Home() {
-  const { Products } = useProducts();
+  const { products } = useProducts();
   const { Cupons } = useCupons();
 
   return (
@@ -40,7 +40,7 @@ export default function Home() {
             </div>
           <div className="flex-col justify-center w-full bg-[#F3F4F6] rounded-xl max-h-80 pt-3 mb-auto">
               <Title size="sm" className="ms-6 text-[#374151]">Top productos del mes</Title>
-              <TableDemo entradas={Products} variants="compact"/>
+              <TableDemo entradas={products} variants="compact"/>
           </div>
         </div>
       </Plantilla>

@@ -97,11 +97,11 @@ export const useProductsStore = create<ProductState>()(
           const createDto = mapFrontendToCreateDto(newProduct)
           
           const createdProduct = await productsApiService.createProduct(createDto)
-          
+          if(createdProduct){
           set(state => ({
             products: [...state.products, createdProduct],
             loading: false
-          }))
+          }))}
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Error desconocido al crear producto'
           set({ 

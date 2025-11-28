@@ -1,7 +1,11 @@
 // src/profile/entities/profile.entity.ts
 import { ApiProperty } from '@nestjs/swagger';
 import {
-  Column, Entity, OneToMany, OneToOne, PrimaryGeneratedColumn
+  Column,
+  Entity,
+  OneToMany,
+  OneToOne,
+  PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Transaction } from '../../transactions/entities/transaction.entity';
 import { Favorito } from '../../favoritos/entities/favorito.entity';
@@ -11,6 +15,7 @@ import { Misdireccione } from '../../misdirecciones/entities/misdireccione.entit
 import { CreateAccount } from '../../create-account/entities/create-account.entity';
 import { Card } from '../../cards/entities/card.entity';
 import { Review } from '../../review/entities/review.entity';
+import { Complaint } from '../../complaints/entities/complaint.entity';
 @Entity()
 export class Profile {
   @ApiProperty({ example: 7 })
@@ -69,10 +74,15 @@ export class Profile {
   @OneToMany(() => Favorito, (favorito) => favorito.usuario)
   favoritos: Favorito[];
 
+  @OneToMany(() => Complaint, (complaint) => complaint.profile)
+  complaints: Complaint[];
+
   @OneToMany(() => Carrito, (carrito) => carrito.usuario)
   carrito: Carrito[];
 
-  @OneToMany(() => Misdireccione, (direccion) => direccion.usuario, { cascade: true })
+  @OneToMany(() => Misdireccione, (direccion) => direccion.usuario, {
+    cascade: true,
+  })
   direcciones: Misdireccione[];
 
   @OneToOne(() => CreateAccount, (user) => user.profile)

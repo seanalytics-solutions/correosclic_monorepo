@@ -21,7 +21,7 @@ const situaciones = [
 export type Situacion = (typeof situaciones)[number];
 
 export class SituacionVO {
-  private constructor(private readonly situacion: Situacion) { }
+  private constructor(private readonly situacion: Situacion) {}
 
   public static create(situacion: Situacion): Result<SituacionVO> {
     if (!situaciones.includes(situacion)) {

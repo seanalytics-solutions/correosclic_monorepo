@@ -43,15 +43,16 @@ export const mapBackendProductToFrontend = (backendProduct: BackendProduct): imp
     ProductCategory: backendProduct.categoria,
     ProductSellerName: 'Vendedor por defecto', // No existe en backend
     ProductSold: 0, // No existe en backend
-    variants: [
-      {
-        tipo: 'Color',
-        price: backendProduct.precio,
-        valor: backendProduct.color,
-        inventario: backendProduct.inventario,
-        sku: `SKU-${backendProduct.id}`
-      }
-    ],
+    Color: backendProduct.color,
+    // variants: [
+    //   {
+    //     tipo: 'Color',
+    //     price: backendProduct.precio,
+    //     valor: backendProduct.color,
+    //     inventario: backendProduct.inventario,
+    //     sku: `SKU-${backendProduct.id}`
+    //   }
+    // ],
     ProductCupons: [] // No existe en backend aún
   };
 };
@@ -64,6 +65,6 @@ export const mapFrontendToCreateDto = (frontendProduct: Partial<import('../types
     inventario: frontendProduct.ProductStock || 0,
     precio: frontendProduct.productPrice || 0,
     categoria: frontendProduct.ProductCategory || '',
-    color: frontendProduct.variants?.[0]?.valor || '#000000'
+    color: frontendProduct.Color || '#000000'
   };
 };

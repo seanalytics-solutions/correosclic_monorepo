@@ -54,8 +54,13 @@ const Footer: React.FC = () => {
         <p>©2025 Correos Clic. Todos los derechos reservados</p>
         <div className="flex space-x-4 mt-2 md:mt-0">
           <Link href="/terminos-condiciones">Términos y condiciones</Link>
+          <Link href="/PoliticasDePrivacidad">Políticas de privacidad</Link>
           <a href="#">Mapa del sitio</a>
         </div>
+
+      
+
+
       </div>
     </footer>
   );

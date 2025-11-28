@@ -1,31 +1,19 @@
-// hooks/useProduct.ts
-'use client';
-
-import { useState, useEffect, useCallback } from 'react'; // <--- IMPORTANTE: Importar useCallback
-import { FrontendProduct } from '@/schemas/products';
-import { productsApiService } from '@/services/productsApi';
+'use client'
+import { useProductsStore } from '../stores/useProductStore'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useHydration } from './useHydratyon'
+import type { FrontendProduct } from '@/schemas/products'
+import { productsApiService } from '@/services/productsApi'
 
 export const useProducts = () => {
+  const store = useProductsStore()
+  const isHydrated = useHydration()
+  const hasLoadedRef = useRef(false)
+
   const [products, setProducts] = useState<FrontendProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 1. Envolver en useCallback para que la función sea estable
-  const loadProducts = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await productsApiService.getAllProducts();
-      setProducts(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar productos');
-      console.error('Error loading products:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []); // Dependencias vacías porque productsApiService es externo
-
-  // 2. Envolver en useCallback
   const loadProductsByCategory = useCallback(async (category: string) => {
     try {
       setLoading(true);
@@ -40,49 +28,127 @@ export const useProducts = () => {
     }
   }, []);
 
-  // 3. Envolver en useCallback
-  const searchProducts = useCallback(async (query: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await productsApiService.searchProducts(query);
-      setProducts(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al buscar productos');
-      console.error('Error searching products:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Obtener producto individual (Este no suele dar problemas de loop, pero es buena práctica)
-  const getProduct = useCallback(async (id: number): Promise<FrontendProduct | null> => {
-    try {
-      return await productsApiService.getProductById(id);
-    } catch (err) {
-      console.error('Error getting product:', err);
-      return null;
-    }
-  }, []);
-
-  // Cargar productos al montar el componente
+  // ✅ CORREGIDO: Evitar loop infinito
   useEffect(() => {
-    loadProducts();
-  }, [loadProducts]); // Ahora es seguro poner loadProducts aquí
+    // Solo cargar una vez al montar el componente
+    if (!hasLoadedRef.current && store.products.length === 0 && !store.loading) {
+      hasLoadedRef.current = true
+      store.loadProducts()
+    }
+  }, []) // Sin dependencias - solo en mount
+
+  const getProductsByCategory = useMemo(() => {
+    return (category: string): FrontendProduct[] => {
+      if (!category) return store.products
+      
+      return store.products.filter(product => 
+        product.ProductCategory?.toLowerCase() === category.toLowerCase()
+      )
+    }
+  }, [store.products])
+
+  const getFeaturedProducts = useMemo(() => {
+    return (limit?: number): FrontendProduct[] => {
+      const featuredProducts = store.products.filter(product => 
+        product.ProductStatus === true && product.ProductStock > 0
+      )
+      
+      return limit ? featuredProducts.slice(0, limit) : featuredProducts
+    }
+  }, [store.products])
+
+  const getAvailableCategories = useMemo(() => {
+    return (): string[] => {
+      const categories = store.products
+        .map(product => product.ProductCategory)
+        .filter((category, index, self) => 
+          category && self.indexOf(category) === index
+        )
+      
+      return categories as string[]
+    }
+  }, [store.products])
+
+  const getProductCountByCategory = useMemo(() => {
+    return (category: string): number => {
+      return store.products.filter(product => 
+        product.ProductCategory?.toLowerCase() === category.toLowerCase()
+      ).length
+    }
+  }, [store.products])
+
+  const searchProducts = useMemo(() => {
+    return (query: string): FrontendProduct[] => {
+      if (!query.trim()) return store.products
+      
+      const searchTerm = query.toLowerCase()
+      return store.products.filter(product =>
+        product.ProductName.toLowerCase().includes(searchTerm) ||
+        product.ProductDescription.toLowerCase().includes(searchTerm) ||
+        product.ProductCategory?.toLowerCase().includes(searchTerm)
+      )
+    }
+  }, [store.products])
+
+  const getProductsByPriceRange = useMemo(() => {
+    return (minPrice: number, maxPrice: number): FrontendProduct[] => {
+      return store.products.filter(product =>
+        product.productPrice >= minPrice && product.productPrice <= maxPrice
+      )
+    }
+  }, [store.products])
+
+  const getAvailableProducts = useMemo(() => {
+    return (): FrontendProduct[] => {
+      return store.products.filter(product =>
+        product.ProductStatus === true && product.ProductStock > 0
+      )
+    }
+  }, [store.products])
+
+  // ✅ Memoizar loadProducts para evitar re-renders
+  const loadProducts = useCallback(() => {
+    store.loadProducts()
+  }, [store.loadProducts])
 
   return {
-    products,
-    loading,
-    error,
-    loadProducts,
-    loadProductsByCategory,
-    searchProducts,
-    getProduct,
-    refetch: loadProducts,
-  };
-};
+    // ===== STATE =====
+    products: store.products,
+    selectedProduct: store.selectedProduct,
+    loading: store.loading,
+    error: store.error,
+    isHydrated,
 
-// ... (El resto del archivo useFeaturedProducts y useProductById estaba bien, puedes dejarlo igual)
+    // ===== API ACTIONS =====
+    loadProducts,
+    loadProduct: store.loadProduct,
+    addProduct: store.addProduct,
+    updateProduct: store.updateProduct,
+    deleteProduct: store.deleteProduct,
+
+    // ===== LOCAL ACTIONS =====
+    selectProduct: store.selectProduct,
+
+    // ===== READ OPERATIONS (compatibilidad) =====
+    getProducts: store.getProducts,
+    getProduct: store.getProduct,
+    hasSelectedProduct: store.hasSelectedProduct,
+
+    // ===== FUNCIONES DE FILTRADO =====
+    getProductsByCategory,
+    loadProductsByCategory,
+    getFeaturedProducts,
+    getAvailableCategories,
+    getProductCountByCategory,
+    searchProducts,
+    getProductsByPriceRange,
+    getAvailableProducts,
+
+    // ===== ERROR HANDLING =====
+    clearError: store.clearError
+  }
+}
+
 export const useFeaturedProducts = (limit: number = 8) => {
   const [featuredProducts, setFeaturedProducts] = useState<FrontendProduct[]>([]);
   const [loading, setLoading] = useState(true);

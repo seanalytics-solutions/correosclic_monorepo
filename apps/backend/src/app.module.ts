@@ -44,6 +44,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { ReviewModule } from './review/review.module';
 import {PDFGeneratorModule} from './guias_trazabilidad/infrastructure/pdf-generator/pdf-generator.module';
 import { CouponModule } from './coupons/coupons.module';
+import { ComplaintsModule } from './complaints/complaints.module';
 
 @Module({
   imports: [
@@ -92,6 +93,7 @@ import { CouponModule } from './coupons/coupons.module';
     ReviewModule,
     PDFGeneratorModule,
     CouponModule,
+    ComplaintsModule,
   ],
   controllers: [AppController, PostalController],
   providers: [AppService, PostalService],
