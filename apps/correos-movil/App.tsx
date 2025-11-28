@@ -27,6 +27,9 @@ function RootNavigation() {
 }
 
 export default function App() {
+  console.log({
+    CLERK_KEY: process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
+  });
   return (
     <ClerkProvider
       publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY}

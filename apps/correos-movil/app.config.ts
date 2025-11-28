@@ -1,8 +1,8 @@
-require("dotenv").config();
+import { ConfigContext, ExpoConfig } from "expo/config";
 
-module.exports = ({ config }) => ({
-  ...config,
-  expo: {
+export default ({ config }: ConfigContext): ExpoConfig => {
+  return {
+    ...config,
     name: "Correos de Mexico",
     slug: "correos-de-mexico",
     version: "1.0.4",
@@ -69,5 +69,5 @@ module.exports = ({ config }) => ({
         },
       ],
     ],
-  },
-});
+  };
+};
