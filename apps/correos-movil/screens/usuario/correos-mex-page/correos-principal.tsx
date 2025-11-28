@@ -188,7 +188,7 @@ export default function HomeUser() {
     {
       name: "MEXPOST",
       image: require("../../../assets/icons_correos_mexico/mexpost-icon.png"),
-      screen: "Mexpost",
+      screen: "Tarifador",
     },
     {
       name: "Servicios para empresas",

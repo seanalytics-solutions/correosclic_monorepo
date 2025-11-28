@@ -5,7 +5,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ...config,
     name: "Correos de Mexico",
     slug: "correos-de-mexico",
-    version: "1.0.4",
+    version: "1.0.5",
     scheme: "correosdemexico",
     assetBundlePatterns: ["**/*"],
     orientation: "portrait",
