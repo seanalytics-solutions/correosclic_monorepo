@@ -38,6 +38,7 @@ export type PedidoBackend = {
       nombre: string;
       descripcion?: string;
       categoria?: string;
+      id_category?: number;
       precio: number | string;
       imagen?: string; // por si existía este campo
       images?: { id: number; url: string; orden: number }[];

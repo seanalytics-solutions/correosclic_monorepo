@@ -69,10 +69,6 @@ export class CreateProductDto {
   @Min(0)
   inventario: number;
 
-  @ApiProperty({ example: 'Electrónicos', description: 'Categoría del producto' })
-  @IsString()
-  categoria: string;
-
   @ApiProperty({ example: 'Negro', description: 'Color del producto' })
   @IsString()
   color: string;
@@ -106,4 +102,8 @@ export class CreateProductDto {
   @Type(() => Number)
   @IsNumber()
   idPerfil: number;
+
+  @ApiProperty({ example: 2, description: 'ID de la categoría del producto' })
+  @IsString()
+  id_category: number;
 }
