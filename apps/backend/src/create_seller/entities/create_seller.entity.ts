@@ -4,7 +4,9 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
+import { Product } from '../../products/entities/product.entity';
 
 @Entity('create_seller')
 export class CreateSellerEntity {
@@ -34,6 +36,9 @@ export class CreateSellerEntity {
 
   @Column()
   ip_last_login: string;
+
+  @OneToMany(() => Product, (product) => product.seller)
+  products: Product[];
 
   @CreateDateColumn({
     type: 'timestamp',
