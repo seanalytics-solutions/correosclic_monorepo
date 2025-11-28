@@ -14,7 +14,6 @@ const { height: screenHeight } = Dimensions.get('window');
 
 const TarificadorMexpost = () => {
   const navigation = useNavigation();
-  const IP = Constants.expoConfig?.extra?.IP_LOCAL;
   const [activeTab, setActiveTab] = useState("Nacional")
   const [codigoOrigen, setCodigoOrigen] = useState("")
   const [codigoDestino, setCodigoDestino] = useState("")

@@ -1,11 +1,11 @@
-require("dotenv").config();
+import { ConfigContext, ExpoConfig } from "expo/config";
 
-module.exports = ({ config }) => ({
-  ...config,
-  expo: {
+export default ({ config }: ConfigContext): ExpoConfig => {
+  return {
+    ...config,
     name: "Correos de Mexico",
     slug: "correos-de-mexico",
-    version: "1.0.2",
+    version: "1.0.5",
     scheme: "correosdemexico",
     assetBundlePatterns: ["**/*"],
     orientation: "portrait",
@@ -23,7 +23,7 @@ module.exports = ({ config }) => ({
       infoPlist: {
         CFBundleURLTypes: [
           {
-            CFBundleURLSchemes: ["correosdemexico"], // must match your scheme
+            CFBundleURLSchemes: ["correosdemexico"],
           },
         ],
       },
@@ -48,16 +48,26 @@ module.exports = ({ config }) => ({
           category: ["BROWSABLE", "DEFAULT"],
         },
       ],
+      permissions: ["android.permission.CAMERA"],
     },
     web: {
       favicon: "./assets/icons_correos_mexico/square_correos_clic_Logo.png",
     },
     extra: {
-      IP_LOCAL: process.env.IP_LOCAL,
       eas: {
         projectId: "a0f0754d-99de-4334-a9be-935e19938c4a",
       },
     },
     owner: "seanalytics",
-  },
-});
+    plugins: [
+      [
+        "expo-camera",
+        {
+          cameraPermission:
+            "La cámara se utiliza para escanear códigos QR y tomar fotos como evidencia de entrega. ¿Deseas permitir el acceso?",
+          recordAudioAndroid: false,
+        },
+      ],
+    ],
+  };
+};

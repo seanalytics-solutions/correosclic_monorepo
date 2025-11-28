@@ -128,7 +128,6 @@ const CorreosClicButton = () => {
 };
 
 export default function HomeUser() {
-  const { logout } = useMyAuth();
   const [products, setProducts] = React.useState<Product[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -140,13 +139,6 @@ export default function HomeUser() {
   const carouselRef = React.useRef<ScrollView>(null);
   const carousel2Ref = React.useRef<ScrollView>(null);
 
-  const handleSignOut = async () => {
-        try {
-        await logout();
-        } catch (err) {
-        console.error('Logout error:', JSON.stringify(err, null, 2));
-        }
-    };
 
   const categoriesData = [
     { name: 'Ropa, moda y calzado', image: require("../../../assets/icons_correos_mexico/ropaModaCalzado-icon.png") },
@@ -273,15 +265,10 @@ export default function HomeUser() {
       <ScrollView style={{ backgroundColor: "white", width: screenWidth, position: "relative" }} showsVerticalScrollIndicator={false}>
         <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
           <View>
-            <TouchableOpacity onPress={handleSignOut}>
               <Image style={styles.correosImage} source={require("../../../assets/icons_correos_mexico/correos_clic_Logo.png")} />
-            </TouchableOpacity>
           </View>
 
           <View style={styles.iconsHeaderContainer}>
-            <TouchableOpacity style={styles.iconsHeader}>
-              <Text style={styles.textLenguage}>ES</Text>
-            </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconsHeader}
               onPress={() => navigation.navigate('Favorito')}

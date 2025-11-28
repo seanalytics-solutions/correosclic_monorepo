@@ -1,7 +1,6 @@
 // api/miscompras.ts
 import { MisComprasSchemaDB, MisComprasType } from "../schemas/schemas";
 
-
 export const myIp = process.env.EXPO_PUBLIC_API_URL || "";
 
 export async function obtenerMisCompras(id: number): Promise<MisComprasType[]> {
@@ -17,11 +16,9 @@ export async function obtenerMisCompras(id: number): Promise<MisComprasType[]> {
   return miscompras;
 }
 
-
-
 // src/api/pedidos.ts
-import axios from 'axios';
-import Constants from 'expo-constants';
+import axios from "axios";
+import Constants from "expo-constants";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL;
 
@@ -46,16 +43,9 @@ export type PedidoBackend = {
   }>;
 };
 
-// src/api/pedidos.ts
-const API_ROOT = Constants.expoConfig?.extra?.IP_LOCAL
-  ? `http://${Constants.expoConfig.extra.IP_LOCAL}:3000/api`
-  : `${(BASE_URL || '').replace(/\/$/, '')}/api`;
-
-// 👇 añade el 'api/' extra del controlador
-const PEDIDOS_PREFIX = 'pedido';
-
-export async function obtenerPedidosPorUsuario(profileId: number) {
-  const { data } = await axios.get(`${API_ROOT}/${PEDIDOS_PREFIX}/user/${profileId}`);
+export async function obtenerPedidosPorUsuario(profileId: string) {
+  const { data } = await axios.get(
+    `${process.env.EXPO_PUBLIC_API_URL}/api/pedido/user/${profileId}`,
+  );
   return data;
 }
-

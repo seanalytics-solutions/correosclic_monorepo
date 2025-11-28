@@ -30,7 +30,6 @@ const { height: screenHeight } = Dimensions.get('window');
 
 const TarificadorMexpost = () => {
   const navigation = useNavigation();
-  const IP = Constants.expoConfig?.extra?.IP_LOCAL;
   const [activeTab, setActiveTab] = useState("Nacional")
   const [codigoOrigen, setCodigoOrigen] = useState("")
   const [codigoDestino, setCodigoDestino] = useState("")
@@ -82,7 +81,7 @@ const TarificadorMexpost = () => {
 
   useEffect(() => {
     if (!showCountryModal) return
-    fetch(`http://${IP}:3000/api/shipping-rates/paises-internacionales`)
+    fetch(`${API_URL}/api/shipping-rates/paises-internacionales`)
       .then(res => res.json())
       .then(data => setPaises(data))
       .catch(() => setPaises([]))
@@ -100,7 +99,7 @@ const TarificadorMexpost = () => {
     }
     setLoading(true);
     try {
-      const response = await fetch(`http://${IP}:3000/api/shipping-rates/calculate-distance`, {
+      const response = await fetch(`${API_URL}/api/shipping-rates/calculate-distance`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ codigoOrigen, codigoDestino }),
@@ -132,7 +131,7 @@ const TarificadorMexpost = () => {
     }
     setLoading(true)
     try {
-      const response = await fetch(`http://${IP}:3000/api/shipping-rates/consultar-pais`, {
+      const response = await fetch(`${API_URL}/api/shipping-rates/consultar-pais`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paisDestino: paisDestino.name }),
@@ -162,7 +161,7 @@ const TarificadorMexpost = () => {
     }
     setLoadingQuote(true)
     try {
-      const response = await fetch(`http://${IP}:3000/api/shipping-rates/cotizar`, {
+      const response = await fetch(`${API_URL}/api/shipping-rates/cotizar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -200,7 +199,7 @@ const TarificadorMexpost = () => {
     }
     setLoadingQuote(true)
     try {
-      const response = await fetch(`http://${IP}:3000/api/shipping-rates/cotizar-internacional`, {
+      const response = await fetch(`${API_URL}/api/shipping-rates/cotizar-internacional`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
