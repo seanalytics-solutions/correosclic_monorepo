@@ -46,10 +46,6 @@ export class Product {
   })
   precio: number;
 
-  @ApiProperty({ example: "Calzado", nullable: true })
-  @Column({ type: "varchar", nullable: true })
-  categoria: string | null;
-
   @ApiProperty({ example: 25 })
   @Column({ type: "int", default: 0 })
   inventario: number;
@@ -85,6 +81,10 @@ export class Product {
   @ApiProperty({ example: 1})
   @Column({ type: "int", nullable: true })
   idPerfil: number | null;
+
+  @ApiProperty({ example: "2", nullable: true })
+  @Column({ type: "int", nullable: true })
+  id_category: number | null;
 
   @ApiProperty({ type: () => [ProductImage] })
   @OneToMany(() => ProductImage, (img) => img.product, { cascade: true })

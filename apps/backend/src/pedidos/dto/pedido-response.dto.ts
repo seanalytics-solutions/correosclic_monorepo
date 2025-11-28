@@ -51,9 +51,6 @@ export class ProductoDto {
   @ApiProperty({ example: 830.81, description: 'Precio del producto' })
   precio: number;
 
-  @ApiProperty({ example: 'Ropa, moda y calzado', description: 'Categoría del producto' })
-  categoria: string;
-
   @ApiProperty({ example: 21, description: 'Cantidad disponible en inventario' })
   inventario: number;
 
@@ -80,6 +77,9 @@ export class ProductoDto {
 
   @ApiPropertyOptional({ example: null, description: 'ID del perfil del vendedor (si aplica)' })
   idPerfil?: number;
+
+  @ApiProperty({ example: 'Ropa, moda y calzado', description: 'Categoría del producto' })
+  id_category: number;
 
   @ApiProperty({ type: [ProductoImageDto], description: 'Imágenes asociadas al producto' })
   images: ProductoImageDto[];

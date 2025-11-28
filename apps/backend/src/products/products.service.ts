@@ -19,6 +19,7 @@ export class ProductsService {
     private readonly productImageRepository: Repository<ProductImage>,
     private readonly uploadImageService: UploadImageService,
     private readonly dataSource: DataSource,
+
   ) { }
 
   // Crear producto + subir imágenes (multipart/form-data)
@@ -281,9 +282,18 @@ export class ProductsService {
       id: p.id,
       nombre: p.nombre,
       precio: p.precio,
-      categoria: p.categoria,
+      id_category: p.id_category,
       estado: p.estado,
       image: p.images?.length ? p.images[0] : null,
     }));
+  }
+
+
+  //Bring all products by category
+  async fetch_products_by_category(id_category: number): Promise<Product[]>{
+    const products_by_category = await this.productRepository.findBy({id_category: id_category});
+
+    return products_by_category
+ 
   }
 }
