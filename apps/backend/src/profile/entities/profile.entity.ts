@@ -15,7 +15,7 @@ import { Misdireccione } from '../../misdirecciones/entities/misdireccione.entit
 import { CreateAccount } from '../../create-account/entities/create-account.entity';
 import { Card } from '../../cards/entities/card.entity';
 import { Review } from '../../review/entities/review.entity';
-import { Complaint } from 'src/complaints/entities/complaint.entity';
+import { Complaint } from '../../complaints/entities/complaint.entity';
 @Entity()
 export class Profile {
   @ApiProperty({ example: 7 })
