@@ -1,4 +1,4 @@
-import { Pedido, PedidoProducto } from 'src/pedidos/entities/pedido.entity';
+import { Pedido, PedidoProducto } from '../../pedidos/entities/pedido.entity';
 import { Profile } from '../../profile/entities/profile.entity';
 import {
   Entity,
