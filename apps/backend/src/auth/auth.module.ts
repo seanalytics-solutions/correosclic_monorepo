@@ -6,13 +6,10 @@ import { JwtStrategy } from './jwt.startegy';
 import { AuthController } from './auth.controller';
 import { UserModule } from '../usuarios/user.module';
 import { ProveedoresModule } from '../proveedores/proveedores.module';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { EmailModule } from '../enviar-correos/enviar-correos.module';
-import { Profile } from '../profile/entities/profile.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Profile]),
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'secret',

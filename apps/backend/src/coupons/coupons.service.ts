@@ -1,28 +1,19 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { CreatedCouponEntity } from './entities/created-coupon.entity';
-import { GiftedCouponEntity } from './entities/gifted-coupon.entity';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class CouponsService {
-  constructor(
-    @InjectRepository(CreatedCouponEntity)
-    private createdCouponRepo: Repository<CreatedCouponEntity>,
-
-    @InjectRepository(GiftedCouponEntity)
-    private giftedCouponRepo: Repository<GiftedCouponEntity>,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   findAllCreated() {
-    return this.createdCouponRepo.find({
-      relations: ['giftedCoupons'],
+    return this.prisma.createdCoupon.findMany({
+      include: { product: true },
     });
   }
 
   findAllGifted() {
-    return this.giftedCouponRepo.find({
-      relations: ['coupon', 'user'],
+    return this.prisma.giftedCoupon.findMany({
+      include: { user: true },
     });
   }
 }

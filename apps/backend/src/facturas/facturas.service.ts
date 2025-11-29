@@ -1,14 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import {
-  Repository,
-  Like,
-  Between,
-  MoreThanOrEqual,
-  LessThanOrEqual,
-} from 'typeorm';
-import { Factura } from './factura.entity';
-import { Profile } from '../profile/entities/profile.entity';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 export interface FacturaFilters {
   id?: number;
@@ -29,12 +20,7 @@ export interface FacturaFilters {
 
 @Injectable()
 export class FacturasService {
-  constructor(
-    @InjectRepository(Factura)
-    private readonly facturaRepo: Repository<Factura>,
-    @InjectRepository(Profile)
-    private readonly profileRepo: Repository<Profile>,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   // Crear factura tras pago
   async crearDesdePago(opts: {
@@ -42,102 +28,109 @@ export class FacturasService {
     totalMXN: number; // en MXN
     status: string; // 'PAGADA' | 'CREADA' | etc.
     productos?: string[]; // ['Producto x2', 'Envío Estándar']
-  }): Promise<Factura> {
-    const profile = await this.profileRepo.findOne({
+  }) {
+    const profile = await this.prisma.profile.findUnique({
       where: { id: opts.profileId },
     });
     if (!profile) throw new NotFoundException('Perfil no encontrado');
 
-    const consecutivo = await this.facturaRepo.count();
+    const consecutivo = await this.prisma.factura.count();
     const numeroFactura = `F-${new Date().getFullYear()}-${String(consecutivo + 1).padStart(6, '0')}`;
 
-    const factura = this.facturaRepo.create({
-      numero_factura: numeroFactura,
-      precio: opts.totalMXN, // ajusta al nombre de tu columna
-      status: opts.status,
-      productos: opts.productos ?? ['Compra en Correos MX'],
-      fecha_creacion: new Date(),
-      fecha_vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      sucursal: 'Correos Clic',
-      profile,
+    const factura = await this.prisma.factura.create({
+      data: {
+        numero_factura: numeroFactura,
+        precio: opts.totalMXN, // ajusta al nombre de tu columna
+        status: opts.status,
+        productos: (opts.productos ?? ['Compra en Correos MX']).join(','),
+        fecha_creacion: new Date(),
+        fecha_vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        sucursal: 'Correos Clic',
+        profileId: opts.profileId,
+      },
     });
 
-    return this.facturaRepo.save(factura);
+    return this.mapFactura(factura);
   }
 
   // Listados (útiles para probar)
-  findAll() {
-    return this.facturaRepo.find({ order: { fecha_creacion: 'DESC' } });
-  }
-
-  findByProfile(profileId: number) {
-    return this.facturaRepo.find({
-      where: { profile: { id: profileId } },
-      order: { fecha_creacion: 'DESC' },
+  async findAll() {
+    const facturas = await this.prisma.factura.findMany({
+      orderBy: { fecha_creacion: 'desc' },
     });
+    return facturas.map((f) => this.mapFactura(f));
   }
 
-  findByBillingId(billingId: number) {
-    return this.facturaRepo.findOne({
+  async findByProfile(profileId: number) {
+    const facturas = await this.prisma.factura.findMany({
+      where: { profileId },
+      orderBy: { fecha_creacion: 'desc' },
+    });
+    return facturas.map((f) => this.mapFactura(f));
+  }
+
+  async findByBillingId(billingId: number) {
+    const factura = await this.prisma.factura.findUnique({
       where: { id: billingId },
     });
+    return factura ? this.mapFactura(factura) : null;
   }
 
-  findByFilters(filters: FacturaFilters): Promise<Factura[]> {
-    const where: Record<string, unknown> = {};
+  async findByFilters(filters: FacturaFilters) {
+    const where: any = {};
 
     if (filters.id) where.id = filters.id;
-    if (filters.profileId) where.profile = { id: filters.profileId };
+    if (filters.profileId) where.profileId = filters.profileId;
     if (filters.numero_factura)
-      where.numero_factura = Like(`%${filters.numero_factura}%`);
-    if (filters.sucursal) where.sucursal = Like(`%${filters.sucursal}%`);
+      where.numero_factura = { contains: filters.numero_factura };
+    if (filters.sucursal) where.sucursal = { contains: filters.sucursal };
     if (filters.status) where.status = filters.status;
 
     // Precio
     if (filters.precio) {
       where.precio = filters.precio;
-    } else if (filters.precioMin && filters.precioMax) {
-      where.precio = Between(filters.precioMin, filters.precioMax);
-    } else if (filters.precioMin) {
-      where.precio = MoreThanOrEqual(filters.precioMin);
-    } else if (filters.precioMax) {
-      where.precio = LessThanOrEqual(filters.precioMax);
+    } else if (filters.precioMin || filters.precioMax) {
+      where.precio = {};
+      if (filters.precioMin) where.precio.gte = filters.precioMin;
+      if (filters.precioMax) where.precio.lte = filters.precioMax;
     }
 
     // Fecha creación
     if (filters.fecha_creacion) {
       where.fecha_creacion = filters.fecha_creacion;
-    } else if (filters.fecha_creacionDesde && filters.fecha_creacionHasta) {
-      where.fecha_creacion = Between(
-        filters.fecha_creacionDesde,
-        filters.fecha_creacionHasta,
-      );
-    } else if (filters.fecha_creacionDesde) {
-      where.fecha_creacion = MoreThanOrEqual(filters.fecha_creacionDesde);
-    } else if (filters.fecha_creacionHasta) {
-      where.fecha_creacion = LessThanOrEqual(filters.fecha_creacionHasta);
+    } else if (filters.fecha_creacionDesde || filters.fecha_creacionHasta) {
+      where.fecha_creacion = {};
+      if (filters.fecha_creacionDesde)
+        where.fecha_creacion.gte = filters.fecha_creacionDesde;
+      if (filters.fecha_creacionHasta)
+        where.fecha_creacion.lte = filters.fecha_creacionHasta;
     }
 
     // Fecha vencimiento
     if (filters.fecha_vencimiento) {
       where.fecha_vencimiento = filters.fecha_vencimiento;
     } else if (
-      filters.fecha_vencimientoDesde &&
+      filters.fecha_vencimientoDesde ||
       filters.fecha_vencimientoHasta
     ) {
-      where.fecha_vencimiento = Between(
-        filters.fecha_vencimientoDesde,
-        filters.fecha_vencimientoHasta,
-      );
-    } else if (filters.fecha_vencimientoDesde) {
-      where.fecha_vencimiento = MoreThanOrEqual(filters.fecha_vencimientoDesde);
-    } else if (filters.fecha_vencimientoHasta) {
-      where.fecha_vencimiento = LessThanOrEqual(filters.fecha_vencimientoHasta);
+      where.fecha_vencimiento = {};
+      if (filters.fecha_vencimientoDesde)
+        where.fecha_vencimiento.gte = filters.fecha_vencimientoDesde;
+      if (filters.fecha_vencimientoHasta)
+        where.fecha_vencimiento.lte = filters.fecha_vencimientoHasta;
     }
 
-    return this.facturaRepo.find({
+    const facturas = await this.prisma.factura.findMany({
       where,
-      order: { fecha_creacion: 'DESC' },
+      orderBy: { fecha_creacion: 'desc' },
     });
+    return facturas.map((f) => this.mapFactura(f));
+  }
+
+  private mapFactura(f: any) {
+    return {
+      ...f,
+      productos: f.productos ? f.productos.split(',') : [],
+    };
   }
 }

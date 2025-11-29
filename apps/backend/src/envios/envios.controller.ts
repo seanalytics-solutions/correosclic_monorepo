@@ -1,71 +1,141 @@
-import { Controller, Get, Param, Post, Body, Patch, BadRequestException, NotFoundException, UploadedFile, UseInterceptors } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBadRequestResponse, ApiNotFoundResponse, ApiCreatedResponse, ApiOkResponse } from '@nestjs/swagger';
-import { EnviosService } from './envios.service';
-import { Envio, EstadoEnvio } from './entities/envios.entity';
+import {
+  Controller,
+  Get,
+  Param,
+  Post,
+  Body,
+  Patch,
+  BadRequestException,
+  NotFoundException,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBadRequestResponse,
+  ApiNotFoundResponse,
+  ApiCreatedResponse,
+  ApiOkResponse,
+} from '@nestjs/swagger';
+import { EnviosService, EstadoEnvio } from './envios.service';
 import { CreateEnvioDto } from './dto/CrearEnvioDto.dto';
 import { FalloEnvioDto } from './dto/FalloEnvio.dto';
 import { UploadImageService } from '../upload-image/upload-image.service';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { EnvioResponseDto } from './dto/EnvioResponseDto.dto';
 
 @ApiTags('Envios')
 @Controller('envios')
 export class EnviosController {
   constructor(
-              private readonly enviosService: EnviosService,
-              private readonly uploadImageService: UploadImageService
-            ) {}
+    private readonly enviosService: EnviosService,
+    private readonly uploadImageService: UploadImageService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Obtener todos los registros de envíos' })
-  @ApiResponse({ status: 200, description: 'Lista de envíos obtenida exitosamente', type: [Envio] })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de envíos obtenida exitosamente',
+    type: [EnvioResponseDto],
+  })
   @ApiResponse({ status: 500, description: 'Error interno del servidor' })
-  findAll(): Promise<Envio[]> {
+  findAll() {
     return this.enviosService.findAll();
   }
 
   @Get('unidad/:id')
   @ApiOperation({ summary: 'Obtener envíos asignados a una unidad (vehículo)' })
   @ApiParam({ name: 'id', description: 'ID del vehículo', type: Number })
-  @ApiResponse({ status: 200, description: 'Lista de envíos por unidad', type: [Envio] })
-  @ApiResponse({ status: 404, description: 'No se encontraron envíos para esta unidad' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de envíos por unidad',
+    type: [EnvioResponseDto],
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'No se encontraron envíos para esta unidad',
+  })
   @ApiResponse({ status: 500, description: 'Error interno del servidor' })
-  findByUnidad(@Param('id') id: number): Promise<Envio[]> {
+  findByUnidad(@Param('id') id: number) {
     return this.enviosService.findByUnidad(id);
   }
 
   @Get('unidad/:id/hoy')
-  @ApiOperation({ summary: 'Obtener los envíos del día para una unidad con detalles de contacto' })
-  @ApiParam({ name: 'id', description: 'ID de la unidad (vehículo)', type: String })
-  @ApiResponse({ status: 200, description: 'Lista de envíos del día para la unidad con detalles de contacto.' })
-  @ApiResponse({ status: 404, description: 'No se encontraron envíos para esta unidad en el día de hoy' })
+  @ApiOperation({
+    summary:
+      'Obtener los envíos del día para una unidad con detalles de contacto',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID de la unidad (vehículo)',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Lista de envíos del día para la unidad con detalles de contacto.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'No se encontraron envíos para esta unidad en el día de hoy',
+  })
   @ApiResponse({ status: 500, description: 'Error interno del servidor' })
   findEnviosDeHoyPorUnidad(@Param('id') id: string): Promise<any[]> {
     return this.enviosService.findEnviosDeHoyPorUnidad(id);
   }
 
   @Get('guia/:id')
-  @ApiOperation({ summary: 'Obtener historial de envíos para una guía específica' })
+  @ApiOperation({
+    summary: 'Obtener historial de envíos para una guía específica',
+  })
   @ApiParam({ name: 'id', description: 'ID de la guía', type: String })
-  @ApiResponse({ status: 200, description: 'Historial de envíos por guía', type: [Envio] })
-  @ApiResponse({ status: 404, description: 'No se encontró ningún envío para esta guía' })
+  @ApiResponse({
+    status: 200,
+    description: 'Historial de envíos por guía',
+    type: [EnvioResponseDto],
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'No se encontró ningún envío para esta guía',
+  })
   @ApiResponse({ status: 500, description: 'Error interno del servidor' })
-  findByGuia(@Param('id') id: string): Promise<Envio[]> {
+  findByGuia(@Param('id') id: string) {
     return this.enviosService.findByGuia(id);
   }
 
   @Post()
-  @ApiCreatedResponse({ description: 'El envío fue creado correctamente.', type: Envio })
+  @ApiCreatedResponse({
+    description: 'El envío fue creado correctamente.',
+    type: EnvioResponseDto,
+  })
   @ApiBadRequestResponse({ description: 'Datos inválidos' })
   @ApiNotFoundResponse({ description: 'Guía o unidad no encontrada' })
-  async create(@Body() dto: CreateEnvioDto): Promise<Envio> {
+  async create(@Body() dto: CreateEnvioDto) {
     return this.enviosService.create(dto);
   }
 
   @Patch('iniciar-ruta/hoy/unidad/:id')
-  @ApiOperation({ summary: 'Actualiza el estado de los envíos del día de hoy de "pendiente" a "en_ruta" para una unidad específica.' })
-  @ApiParam({ name: 'id', description: 'ID de la unidad (vehículo)', type: String })
-  @ApiOkResponse({ description: 'Envíos actualizados a "en_ruta" correctamente.', schema: { example: { updated: 5 } } })
-  @ApiNotFoundResponse({ description: 'No se encontraron envíos pendientes para la unidad y el día de hoy.' })
+  @ApiOperation({
+    summary:
+      'Actualiza el estado de los envíos del día de hoy de "pendiente" a "en_ruta" para una unidad específica.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID de la unidad (vehículo)',
+    type: String,
+  })
+  @ApiOkResponse({
+    description: 'Envíos actualizados a "en_ruta" correctamente.',
+    schema: { example: { updated: 5 } },
+  })
+  @ApiNotFoundResponse({
+    description:
+      'No se encontraron envíos pendientes para la unidad y el día de hoy.',
+  })
   @ApiBadRequestResponse({ description: 'ID de unidad inválido.' })
   async iniciarRuta(
     @Param('id') unidadId: number,
@@ -75,28 +145,46 @@ export class EnviosController {
 
   @Patch(':id/fallido')
   @ApiOperation({ summary: 'Marcar un envío como fallido' })
-  @ApiParam({ name: 'id', description: 'ID del envío a marcar como fallido', type: String })
-  @ApiOkResponse({ description: 'El envío ha sido marcado como fallido.', type: Envio })
+  @ApiParam({
+    name: 'id',
+    description: 'ID del envío a marcar como fallido',
+    type: String,
+  })
+  @ApiOkResponse({
+    description: 'El envío ha sido marcado como fallido.',
+    type: EnvioResponseDto,
+  })
   @ApiNotFoundResponse({ description: 'Envío no encontrado.' })
   @ApiBadRequestResponse({ description: 'Datos inválidos.' })
   marcarComoFallido(
     @Param('id') id: number,
     @Body() falloEnvioDto: FalloEnvioDto,
-  ): Promise<Envio> {
-    return this.enviosService.marcarComoFallido(id, falloEnvioDto.motivo_fallido);
+  ) {
+    return this.enviosService.marcarComoFallido(
+      id,
+      falloEnvioDto.motivo_fallido,
+    );
   }
 
   @Patch(':id/estatus')
   @ApiOperation({ summary: 'Actualizar estatus del envío' })
   @ApiParam({ name: 'id', type: String, description: 'ID del envío' })
-  @ApiParam({ name: 'nuevoEstado', type: String, description: 'Nuevo estatus (pendiente, en_ruta, entregado, fallido)' })
-  @ApiParam({ name: 'nombreReceptor', type: String, description: 'Es el nombre de quien lo recibio'})
+  @ApiParam({
+    name: 'nuevoEstado',
+    type: String,
+    description: 'Nuevo estatus (pendiente, en_ruta, entregado, fallido)',
+  })
+  @ApiParam({
+    name: 'nombreReceptor',
+    type: String,
+    description: 'Es el nombre de quien lo recibio',
+  })
   @ApiOkResponse({ description: 'Estatus actualizado correctamente' })
   @ApiNotFoundResponse({ description: 'Envío no encontrado' })
   @ApiBadRequestResponse({ description: 'Estado inválido' })
   async actualizarEstado(
     @Param('id') id: number,
-    @Body() body: { estado: string, nombre_receptor: string }
+    @Body() body: { estado: string; nombre_receptor: string },
   ) {
     const { estado, nombre_receptor } = body;
 
@@ -108,7 +196,11 @@ export class EnviosController {
       throw new BadRequestException('El receptor es obligatorio.');
     }
 
-    const actualizado = await this.enviosService.actualizarEstatus(id, estado, nombre_receptor);
+    const actualizado = await this.enviosService.actualizarEstatus(
+      id,
+      estado,
+      nombre_receptor,
+    );
 
     if (!actualizado) {
       throw new NotFoundException(`No se encontró el envío con ID ${id}`);
@@ -129,7 +221,7 @@ export class EnviosController {
   @ApiNotFoundResponse({ description: 'Envío no encontrado' })
   async anadirEvidencia(
     @Param('id') id: number,
-    @UploadedFile() file: Express.Multer.File
+    @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) {
       throw new BadRequestException('No se subió ningún archivo.');

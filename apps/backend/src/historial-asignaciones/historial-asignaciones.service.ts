@@ -1,92 +1,101 @@
 import { Injectable } from '@nestjs/common';
-import { NotFoundException, BadRequestException } from '@nestjs/common/exceptions';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
-import { HistorialAsignacion } from './entities/historial-asignacion.entity';
+import {
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common/exceptions';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class HistorialAsignacionesService {
-  constructor(
-    @InjectRepository(HistorialAsignacion)
-    private historialRepository: Repository<HistorialAsignacion>,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async registrarAsignacion(
     nombreConductor: string,
     curp: string,
     placasUnidad: string,
     oficinaSalida: string,
-    claveCuoDestino: string
-  ): Promise<HistorialAsignacion> {
-    const nuevaAsignacion = this.historialRepository.create({
-      nombreConductor,
-      curp: curp.toUpperCase(),
-      placasUnidad,
-      claveOficinaSalida: oficinaSalida,
-      claveOficinaDestino: claveCuoDestino,
-      claveOficinaActual: oficinaSalida // Inicialmente está en la oficina de salida
+    claveCuoDestino: string | null,
+  ) {
+    return this.prisma.historialAsignacion.create({
+      data: {
+        nombreConductor,
+        curp: curp.toUpperCase(),
+        placasUnidad,
+        claveOficinaSalida: oficinaSalida,
+        claveOficinaDestino: claveCuoDestino,
+        claveOficinaActual: oficinaSalida, // Inicialmente está en la oficina de salida
+      },
     });
-    return this.historialRepository.save(nuevaAsignacion);
   }
 
   async registrarLlegadaDestino(
     curp: string,
     placasUnidad: string,
-    claveOficinaActual: string
-  ): Promise<HistorialAsignacion> {
-    const asignacion = await this.historialRepository.findOne({
+    claveOficinaActual: string,
+  ) {
+    const asignacion = await this.prisma.historialAsignacion.findFirst({
       where: {
         curp: curp.toUpperCase(),
         placasUnidad,
-        fechaLlegadaDestino: IsNull()
+        fechaLlegadaDestino: null,
       },
-      order: { fechaAsignacion: 'DESC' }
+      orderBy: { fechaAsignacion: 'desc' },
     });
 
     if (!asignacion) {
       throw new NotFoundException('Asignación activa no encontrada');
     }
 
-    asignacion.claveOficinaActual = claveOficinaActual;
-    asignacion.fechaLlegadaDestino = new Date();
-    
-    return this.historialRepository.save(asignacion);
+    return this.prisma.historialAsignacion.update({
+      where: { id: asignacion.id },
+      data: {
+        claveOficinaActual: claveOficinaActual,
+        fechaLlegadaDestino: new Date(),
+      },
+    });
   }
 
-  async finalizarAsignacion(
-    curp: string,
-    placasUnidad: string,
-  ): Promise<void> {
-    await this.historialRepository.update(
-      { curp: curp.toUpperCase(), placasUnidad, fechaFinalizacion: IsNull() },
-      { fechaFinalizacion: new Date() },
-    );
+  async finalizarAsignacion(curp: string, placasUnidad: string): Promise<void> {
+    // Prisma updateMany doesn't support order/limit directly in the same way, 
+    // but here we want to update active assignments.
+    // Assuming we want to close the active one.
+    
+    // Find active assignment first to be safe or updateMany where fechaFinalizacion is null
+    await this.prisma.historialAsignacion.updateMany({
+      where: { 
+        curp: curp.toUpperCase(), 
+        placasUnidad, 
+        fechaFinalizacion: null 
+      },
+      data: { fechaFinalizacion: new Date() },
+    });
   }
 
   async getHistorial(
     placas?: string,
     curp?: string,
-  ): Promise<HistorialAsignacion[]> {
+  ) {
     const where: any = {};
     if (placas) where.placasUnidad = placas;
     if (curp) where.curp = curp.toUpperCase();
 
-    return this.historialRepository.find({
+    return this.prisma.historialAsignacion.findMany({
       where,
-      order: { fechaAsignacion: 'DESC' },
+      orderBy: { fechaAsignacion: 'desc' },
     });
   }
-    async registrarRetornoOrigen(
+
+  async registrarRetornoOrigen(
     curp: string,
-    placasUnidad: string
-  ): Promise<HistorialAsignacion> {
-    const asignacion = await this.historialRepository.findOne({
+    placasUnidad: string,
+  ) {
+    const asignacion = await this.prisma.historialAsignacion.findFirst({
       where: {
         curp: curp.toUpperCase(),
         placasUnidad,
-        fechaFinalizacion: IsNull()
+        fechaFinalizacion: null,
       },
-      order: { fechaAsignacion: 'DESC' }
+      orderBy: { fechaAsignacion: 'desc' },
     });
 
     if (!asignacion) {
@@ -98,9 +107,12 @@ export class HistorialAsignacionesService {
       throw new BadRequestException('La unidad debe llegar al destino primero');
     }
 
-    asignacion.claveOficinaActual = asignacion.claveOficinaSalida; // Regresa al origen
-    asignacion.fechaFinalizacion = new Date();
-    
-    return this.historialRepository.save(asignacion);
+    return this.prisma.historialAsignacion.update({
+      where: { id: asignacion.id },
+      data: {
+        claveOficinaActual: asignacion.claveOficinaSalida, // Regresa al origen
+        fechaFinalizacion: new Date(),
+      },
+    });
   }
 }

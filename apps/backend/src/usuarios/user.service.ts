@@ -1,91 +1,111 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { LessThan, Not, Repository } from 'typeorm';
-import { User } from './entities/user.entity';
-import { CreateAccount } from '../create-account/entities/create-account.entity';
-import { Profile } from '../profile/entities/profile.entity';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateAccount, Profile } from '@prisma/client';
 
 @Injectable()
 export class UserService {
   private readonly logger = new Logger(UserService.name);
 
   constructor(
-    @InjectRepository(CreateAccount)
-    private readonly repo: Repository<CreateAccount>,
-  ) { }
+    private readonly prisma: PrismaService,
+  ) {}
 
-  async create(data: Partial<CreateAccount> & { profile?: Profile }) {
-    const user = this.repo.create({
-      ...data,
-      tokenCreatedAt: new Date() // Establecer fecha de creación del token
+  async create(data: Partial<CreateAccount> & { profile?: any }) {
+    const { profile, ...userData } = data;
+    
+    // Prepare profile data if it exists
+    let profileCreateData: any = undefined;
+    if (profile) {
+      // If profile is a TypeORM entity or object, we extract properties.
+      // We assume it matches ProfileCreateInput roughly.
+      // We exclude 'id' if it's present and falsy/0/undefined to let DB generate it, 
+      // or if it's auto-increment.
+      const { id, ...restProfile } = profile;
+      profileCreateData = {
+        create: restProfile
+      };
+    }
+
+    const user = await this.prisma.createAccount.create({
+      data: {
+        ...userData as any,
+        tokenCreatedAt: new Date(),
+        profile: profileCreateData,
+      },
+      include: {
+        profile: true,
+      },
     });
-    return this.repo.save(user);
+    return user;
   }
 
   findAll() {
-    return this.repo.find();
+    return this.prisma.createAccount.findMany();
   }
 
   findByCorreo(correo: string) {
-    return this.repo.findOne({
+    return this.prisma.createAccount.findFirst({
       where: { correo },
-      relations: ['profile']
+      include: { profile: true },
     });
   }
 
   findByCorreoNoOAuth(correo: string) {
-    return this.repo.findOne({
+    return this.prisma.createAccount.findFirst({
       where: {
         correo,
-        password: Not("N/A: OAuth")
-      }
+        password: { not: 'N/A: OAuth' },
+      },
     });
   }
 
   findById(id: number) {
-    return this.repo.findOne({
+    return this.prisma.createAccount.findUnique({
       where: { id },
-      relations: ['profile']
+      include: { profile: true },
     });
   }
 
   async update(email: string, password: string) {
-    const result = await this.repo.update(
-      {
+    const result = await this.prisma.createAccount.updateMany({
+      where: {
         correo: email,
-        password: Not("N/A: OAuth")
+        password: { not: 'N/A: OAuth' },
       },
-      { password, confirmado: true }
-    );
+      data: { password, confirmado: true },
+    });
 
-    if (result.affected === 0) {
+    if (result.count === 0) {
       this.logger.warn(`No se encontró usuario para actualizar: ${email}`);
     }
-    return result;
+    return { affected: result.count };
   }
 
-  async updateOTP(email: string, data: {
-    token?: string | null;
-    tokenCreatedAt?: Date | null;
-    confirmado?: boolean
-  }) {
+  async updateOTP(
+    email: string,
+    data: {
+      token?: string | null;
+      tokenCreatedAt?: Date | null;
+      confirmado?: boolean;
+    },
+  ) {
     try {
-      const result = await this.repo.update(
-        {
+      const result = await this.prisma.createAccount.updateMany({
+        where: {
           correo: email,
-          password: Not("N/A: OAuth")
+          password: { not: 'N/A: OAuth' },
         },
-        {
+        data: {
           token: data.token,
-          tokenCreatedAt: data.tokenCreatedAt, 
-          confirmado: data.confirmado
-        }
-      );
+          tokenCreatedAt: data.tokenCreatedAt,
+          confirmado: data.confirmado,
+        },
+      });
 
-      if (result.affected === 0) {
+      if (result.count === 0) {
         this.logger.warn(`No se pudo actualizar OTP para: ${email}`);
       }
-      return result;
+      return { affected: result.count };
     } catch (error) {
       this.logger.error(`Error al actualizar OTP: ${error.message}`);
       throw error;
@@ -93,34 +113,37 @@ export class UserService {
   }
 
   async updateConfirmado(email: string, confirmado: boolean) {
-    const result = await this.repo.update(
-      {
+    const result = await this.prisma.createAccount.updateMany({
+      where: {
         correo: email,
-        password: Not("N/A: OAuth")
+        password: { not: 'N/A: OAuth' },
       },
-      { confirmado }
-    );
+      data: { confirmado },
+    });
 
-    if (result.affected === 0) {
-      this.logger.warn(`No se pudo actualizar estado de confirmación para: ${email}`);
+    if (result.count === 0) {
+      this.logger.warn(
+        `No se pudo actualizar estado de confirmación para: ${email}`,
+      );
     }
-    return result;
+    return { affected: result.count };
   }
 
   async cleanExpiredTokens(): Promise<number> {
     try {
-      const expirationTime = new Date(Date.now() + (360- 10) * 60 * 1000); // 10 minutos atrás (compensación de UTC -6)
-      const result = await this.repo.createQueryBuilder()
-        .update(CreateAccount)
-        .set({
+      const expirationTime = new Date(Date.now() + (360 - 10) * 60 * 1000); // 10 minutos atrás (compensación de UTC -6)
+      const result = await this.prisma.createAccount.updateMany({
+        where: {
+          tokenCreatedAt: { lt: expirationTime },
+          token: { not: null },
+        },
+        data: {
           token: null,
-          tokenCreatedAt: null
-        })
-        .where("token_created_at < :expirationTime", { expirationTime })
-        .andWhere("token IS NOT NULL")
-        .execute();
+          tokenCreatedAt: null,
+        },
+      });
 
-      const cleanedCount = result.affected || 0;
+      const cleanedCount = result.count;
       this.logger.log(`Tokens expirados limpiados: ${cleanedCount}`);
       return cleanedCount;
     } catch (error) {
@@ -133,29 +156,30 @@ export class UserService {
     try {
       const expirationTime = new Date(Date.now() - 18 * 60 * 60 * 1000); // 24 horas (compensación de UTC -6)
 
-      const result = await this.repo.createQueryBuilder()
-        .delete()
-        .where("confirmado = false")
-        .andWhere("token_created_at < :expirationTime", { expirationTime })
-        .andWhere("token_created_at IS NOT NULL")
-        .execute();
+      const result = await this.prisma.createAccount.deleteMany({
+        where: {
+          confirmado: false,
+          tokenCreatedAt: { lt: expirationTime, not: null },
+        },
+      });
 
-      const deletedCount = result.affected || 0;
+      const deletedCount = result.count;
       this.logger.log(`Usuarios no verificados eliminados: ${deletedCount}`);
       return deletedCount;
     } catch (error) {
-      this.logger.error(`Error limpiando usuarios no verificados: ${error.message}`);
+      this.logger.error(
+        `Error limpiando usuarios no verificados: ${error.message}`,
+      );
       throw error;
     }
   }
 
   async findUnverifiedUsers(expirationTime: Date) {
-    return this.repo.find({
+    return this.prisma.createAccount.findMany({
       where: {
         confirmado: false,
-        tokenCreatedAt: LessThan(expirationTime)
-      }
+        tokenCreatedAt: { lt: expirationTime },
+      },
     });
   }
-
 }

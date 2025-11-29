@@ -5,11 +5,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
-import { Repository } from 'typeorm';
 import { EnviarCorreosService } from '../enviar-correos/enviar-correos.service';
-import { Profile } from '../profile/entities/profile.entity';
 import { ProveedoresService } from '../proveedores/proveedores.service';
 import { UserService } from '../usuarios/user.service';
 import { AuthDto } from './dto/auth.dto';
@@ -26,8 +23,6 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
-    @InjectRepository(Profile)
-    private readonly profileRepository: Repository<Profile>,
     private jwtService: JwtService,
     private usuariosService: UserService,
     private proveedoresService: ProveedoresService,
@@ -41,7 +36,9 @@ export class AuthService {
       hash = await bcrypt.hash(dto.contrasena, 10);
     }
 
-    const userExists = await this.usuariosService.findByCorreoNoOAuth(dto.correo);
+    const userExists = await this.usuariosService.findByCorreoNoOAuth(
+      dto.correo,
+    );
 
     if (userExists) {
       throw new UnauthorizedException('El correo ya está en uso');
@@ -58,7 +55,7 @@ export class AuthService {
     });
 
     // Creación de perfil
-    const profile = this.profileRepository.create({
+    const profile = {
       nombre: dto.nombre || dto.correo.split('@')[0],
       apellido: '',
       numero: '',
@@ -68,7 +65,7 @@ export class AuthService {
       calle: '',
       codigoPostal: '',
       stripeCustomerId: customer.id,
-    });
+    };
 
     // 4. Creación de usuario
     const user = await this.usuariosService.create({
@@ -92,19 +89,19 @@ export class AuthService {
     await this.enviarCorreosService.enviarConfirmacion({
       correo: user.correo,
       token: verificationToken,
-      nombre: user.nombre,
+      nombre: user.nombre || undefined,
     });
 
     // 6. Generar token JWT
     const token = await this.jwtService.signAsync({
-      profileId: user.profile.id,
+      profileId: user.profile!.id,
       rol: 'usuario',
     });
 
     return {
       token,
       id: user.id,
-      userId: user.profile.id,
+      userId: user.profile!.id,
     };
   }
 
@@ -124,7 +121,7 @@ export class AuthService {
         email: dto.correo,
       });
 
-      const profile = this.profileRepository.create({
+      const profile = {
         nombre: dto.nombre || dto.correo.split('@')[0],
         apellido: '',
         numero: '',
@@ -134,7 +131,7 @@ export class AuthService {
         calle: '',
         codigoPostal: '',
         stripeCustomerId: customer.id,
-      });
+      };
 
       user = await this.usuariosService.create({
         nombre: dto.nombre || dto.correo.split('@')[0],
@@ -156,7 +153,7 @@ export class AuthService {
     }
 
     const token = await this.jwtService.signAsync({
-      profileId: user.profile.id,
+      profileId: user.profile!.id,
       rol: user.rol || 'usuario',
     });
 
@@ -169,7 +166,7 @@ export class AuthService {
     if (!user || !user.password) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
-    
+
     if (user.confirmado === false) {
       throw new UnauthorizedException('Usuario no verificado');
     }
@@ -224,7 +221,7 @@ export class AuthService {
     await this.enviarCorreosService.enviarConfirmacion({
       correo: user.correo,
       token: otp.toString(),
-      nombre: user.nombre,
+      nombre: user.nombre || undefined,
     });
 
     return { message: 'OTP enviado correctamente' };
@@ -274,7 +271,7 @@ export class AuthService {
 
   // Las tareas programadas (Cron) están comentadas por ahora, lo cual está bien si no las usas activamente
   // para no saturar la consola en desarrollo.
-  
+
   async handleCleanUnverifiedUsers() {
     this.logger.log('Iniciando limpieza de usuarios no verificados...');
 
@@ -282,7 +279,10 @@ export class AuthService {
       const deletedCount = await this.usuariosService.cleanUnverifiedUsers();
       this.logger.log(`Usuarios no verificados eliminados: ${deletedCount}`);
     } catch (error) {
-      this.logger.error('Error en limpieza de usuarios no verificados:', error.stack);
+      this.logger.error(
+        'Error en limpieza de usuarios no verificados:',
+        error.stack,
+      );
     }
   }
 }

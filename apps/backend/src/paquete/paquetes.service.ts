@@ -1,61 +1,63 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { PrismaService } from '../prisma/prisma.service';
 import { Paquete } from './entities/paquete.entity';
 
 @Injectable()
 export class PaquetesService {
-  constructor(
-    @InjectRepository(Paquete)
-    private readonly paqueteRepo: Repository<Paquete>,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   findAll() {
-    return this.paqueteRepo.find();
+    return this.prisma.paquete.findMany();
   }
 
- async findOne(id: number): Promise<Paquete> {
-    const paquete = await this.paqueteRepo.findOne({ where: { id } });
+  async findOne(id: number): Promise<Paquete> {
+    const paquete = await this.prisma.paquete.findUnique({ where: { id } });
     if (!paquete) {
       throw new NotFoundException(`Paquete con ID ${id} no encontrado`);
     }
-    return paquete;
+    return paquete as any; // Cast to match return type if needed
   }
 
-  create(data: Partial<Paquete>) {
-    const nuevo = this.paqueteRepo.create(data);
-    return this.paqueteRepo.save(nuevo);
+  create(data: any) {
+    return this.prisma.paquete.create({ data });
   }
 
-  async update(id: number, data: Partial<Paquete>): Promise<Paquete> {
-    await this.paqueteRepo.update(id, data);
-    return this.findOne(id);
+  async update(id: number, data: any): Promise<Paquete> {
+    return (await this.prisma.paquete.update({
+      where: { id },
+      data,
+    })) as any;
   }
 
-  async actualizarEstatus(id: number, nuevoEstatus: string): Promise<Paquete | null> {
-    const paquete = await this.paqueteRepo.findOne({ where: { id } });
-
-    if (!paquete) {
+  async actualizarEstatus(
+    id: number,
+    nuevoEstatus: string,
+  ): Promise<Paquete | null> {
+    try {
+      return (await this.prisma.paquete.update({
+        where: { id },
+        data: { estatus: nuevoEstatus },
+      })) as any;
+    } catch (e) {
       return null;
     }
-
-    paquete.estatus = nuevoEstatus;
-    return await this.paqueteRepo.save(paquete);
   }
 
-  async anadirEvidencia(id: number, urlEvidencia: string): Promise<Paquete | null> {
-    const paquete = await this.paqueteRepo.findOne({ where: { id } });
-
-    if (!paquete) {
+  async anadirEvidencia(
+    id: number,
+    urlEvidencia: string,
+  ): Promise<Paquete | null> {
+    try {
+      return (await this.prisma.paquete.update({
+        where: { id },
+        data: { evidencia: urlEvidencia },
+      })) as any;
+    } catch (e) {
       return null;
     }
-
-    paquete.evidencia = urlEvidencia;
-
-    return await this.paqueteRepo.save(paquete);
   }
 
   remove(id: number) {
-    return this.paqueteRepo.delete(id);
+    return this.prisma.paquete.delete({ where: { id } });
   }
 }

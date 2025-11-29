@@ -1,6 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { TipoVehiculo } from '../entities/tipo-vehiculo.entity';
-import { Oficina } from './../../oficinas/entities/oficina.entity';
 
 @Entity('tipo_vehiculo_sucursal')
 export class TipoVehiculoOficina {
@@ -18,5 +23,4 @@ export class TipoVehiculoOficina {
   // FK a oficinas.tipo_cuo (enum)
   @Column({ name: 'tipo_oficina' })
   tipoOficina: string;
-
 }

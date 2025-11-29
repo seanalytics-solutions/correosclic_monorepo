@@ -5,7 +5,7 @@ import {
   ComplaintType,
   ComplaintResolution,
   ComplaintPriority,
-} from '../entities/complaint.entity';
+} from '../constants';
 
 export class UpdateComplaintDto {
   @ApiPropertyOptional({

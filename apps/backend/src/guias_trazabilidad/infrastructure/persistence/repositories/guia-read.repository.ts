@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { PrismaService } from '../../../../prisma/prisma.service';
 import { GuiaReadRepositoryInterface } from '../../../application/ports/outbound/guia-read.repository.interface';
 import {
   TrazabilidadReadModel,
@@ -10,7 +10,7 @@ import {
 
 @Injectable()
 export class GuiaReadRepository implements GuiaReadRepositoryInterface {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async findByNumeroRastreo(
     numeroRastreo: string,
@@ -83,7 +83,7 @@ export class GuiaReadRepository implements GuiaReadRepositoryInterface {
         gi.peso_kg, gi.dimensiones, gi.fecha_creacion, gi.fecha_entrega_estimada;
     `;
 
-    const result = await this.dataSource.query(query, [numeroRastreo]);
+    const result = (await this.prisma.$queryRawUnsafe(query, numeroRastreo)) as any[];
     return result.length > 0 ? result[0] : null;
   }
 
@@ -116,7 +116,7 @@ export class GuiaReadRepository implements GuiaReadRepositoryInterface {
       ORDER BY g.fecha_creacion DESC;
     `;
 
-    return await this.dataSource.query(query);
+    return (await this.prisma.$queryRawUnsafe(query)) as GuiaListReadModel[];
   }
 
   async findAllIncidencias(): Promise<IncidenciaReadModel[]> {
@@ -137,7 +137,7 @@ export class GuiaReadRepository implements GuiaReadRepositoryInterface {
       ORDER BY i.fecha_incidencia DESC;
     `;
 
-    return await this.dataSource.query(query);
+    return (await this.prisma.$queryRawUnsafe(query)) as IncidenciaReadModel[];
   }
 
   async findAllContactos(): Promise<ContactoReadModel[]> {
@@ -165,6 +165,6 @@ export class GuiaReadRepository implements GuiaReadRepositoryInterface {
       ORDER BY nombres, apellidos;
     `;
 
-    return await this.dataSource.query(query);
+    return (await this.prisma.$queryRawUnsafe(query)) as ContactoReadModel[];
   }
 }

@@ -1,112 +1,120 @@
-import { Injectable, NotFoundException, BadRequestException} from '@nestjs/common'; // Importa decoradores y excepciones de NestJS
-import { InjectRepository } from '@nestjs/typeorm'; // Permite inyectar repositorios TypeORM
-import { HttpService } from '@nestjs/axios'; // Permite hacer peticiones HTTP externas
-import { ConfigService } from '@nestjs/config'; // Permite acceder a variables de configuración
-import { Repository, LessThanOrEqual, MoreThanOrEqual } from 'typeorm'; // Utilidades para consultas en la base de datos
-import { firstValueFrom } from 'rxjs'; // Convierte un Observable en una Promesa
-
-import { ShippingRate } from './entities/shipping_rate.entity'; // Entidad de tarifas de envío
-import { Zone } from './entities/zone.entity'; // Entidad de zonas de envío
-import { InternationalCountry } from './entities/international-country.entity'; // Entidad de países internacionales
-import { InternationalTariff } from './entities/international-tariff.entity'; // Entidad de tarifas internacionales
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
+import { firstValueFrom } from 'rxjs';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 import {
   CreateShippingRateDto,
   UpdateShippingRateDto,
   ShippingRateResponseDto,
-} from './dto/create-shipping_rate.dto'; // Importa los DTOs usados para validar y tipar datos
+} from './dto/create-shipping_rate.dto';
 
 @Injectable()
 export class ShippingRateService {
-  // Constructor: inyecta los repositorios y servicios necesarios
   constructor(
-    @InjectRepository(ShippingRate)
-    private shippingRateRepository: Repository<ShippingRate>,
-
-    @InjectRepository(Zone)
-    private zoneRepository: Repository<Zone>,
-
+    private readonly prisma: PrismaService,
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+  ) {}
 
-    @InjectRepository(InternationalCountry)
-    private countryRepository: Repository<InternationalCountry>,
-
-    @InjectRepository(InternationalCountry)
-    private internationalCountryRepository: Repository<InternationalCountry>, // Repositorio para países internacionales
-
-    @InjectRepository(InternationalTariff)
-    private readonly tariffRepository: Repository<InternationalTariff>,
-  ) { }
-
-  // Obtiene la tarifa internacional según país y peso
   async getInternationalTariff(paisDestino: string, peso: number) {
-    const country = await this.internationalCountryRepository.findOne({
+    const country = await this.prisma.internationalCountry.findUnique({
       where: { name: paisDestino },
-      relations: ['zone'],
+      include: { zone: true },
     });
 
     if (!country || !country.zone) {
       throw new NotFoundException('País o zona no encontrada');
     }
 
-    const tarifa = await this.tariffRepository.findOne({
+    const tarifa = await this.prisma.internationalTariff.findFirst({
       where: {
-        zone: { id: country.zone.id },
-        max_kg: MoreThanOrEqual(peso),
+        zoneId: country.zone.id,
+        maxKg: { gte: peso },
       },
-      order: { max_kg: 'ASC' },
+      orderBy: { maxKg: 'asc' },
     });
 
     if (!tarifa) {
       throw new NotFoundException('No se encontró tarifa para ese peso');
     }
 
-    const excedente = peso - tarifa.max_kg;
-    const adicional = excedente > 0 && tarifa.additional_per_kg ? excedente * tarifa.additional_per_kg : 0;
-    const subtotal = tarifa.base_price + adicional;
-    const iva = subtotal * (tarifa.iva_percent / 100);
+    const excedente = peso - (tarifa.maxKg || 0);
+    const additionalPerKg = tarifa.additionalPerKg || 0;
+    const basePrice = tarifa.basePrice || 0;
+    const ivaPercent = tarifa.ivaPercent || 0;
+
+    const adicional =
+      excedente > 0 && additionalPerKg
+        ? excedente * additionalPerKg
+        : 0;
+    const subtotal = basePrice + adicional;
+    const iva = subtotal * (ivaPercent / 100);
     const total = subtotal + iva;
 
     return {
       zona: country.zone.code,
       descripcionZona: country.zone.description,
       peso,
-      precioBase: tarifa.base_price,
+      precioBase: basePrice,
       adicional: +adicional.toFixed(2),
       iva: +iva.toFixed(2),
       total: +total.toFixed(2),
     };
   }
 
-  // Crea una nueva tarifa de envío
-  async create(createShippingRateDto: CreateShippingRateDto): Promise<ShippingRateResponseDto> {
-    const shippingRate = this.shippingRateRepository.create(createShippingRateDto);
-    const savedRate = await this.shippingRateRepository.save(shippingRate);
+  async create(
+    createShippingRateDto: CreateShippingRateDto,
+  ): Promise<ShippingRateResponseDto> {
+    const { zoneId, serviceId, ...rest } = createShippingRateDto as any;
+    
+    const data: any = { ...rest };
+    if ((createShippingRateDto as any).zone) {
+        data.zone = { connect: { id: (createShippingRateDto as any).zone.id } };
+    } else if (zoneId) {
+        data.zone = { connect: { id: zoneId } };
+    }
+
+    if ((createShippingRateDto as any).service) {
+        data.service = { connect: { id: (createShippingRateDto as any).service.id } };
+    } else if (serviceId) {
+        data.service = { connect: { id: serviceId } };
+    }
+
+    const savedRate = await this.prisma.shippingRate.create({
+      data: data,
+      include: { zone: true, service: true },
+    });
     return this.mapToResponseDto(savedRate);
   }
 
-  // Crea varias tarifas de envío en lote
-  async createMany(createShippingRateDtos: CreateShippingRateDto[]): Promise<ShippingRateResponseDto[]> {
-    const shippingRates = this.shippingRateRepository.create(createShippingRateDtos);
-    const savedRates = await this.shippingRateRepository.save(shippingRates);
-    return savedRates.map((rate) => this.mapToResponseDto(rate));
+  async createMany(
+    createShippingRateDtos: CreateShippingRateDto[],
+  ): Promise<ShippingRateResponseDto[]> {
+    const results: ShippingRateResponseDto[] = [];
+    for (const dto of createShippingRateDtos) {
+        results.push(await this.create(dto));
+    }
+    return results;
   }
 
-  // Obtiene todas las tarifas de envío
   async findAll(): Promise<ShippingRateResponseDto[]> {
-    const rates = await this.shippingRateRepository.find({
-      relations: ['zone', 'service'],
-      order: { id: 'ASC' },
+    const rates = await this.prisma.shippingRate.findMany({
+      include: { zone: true, service: true },
+      orderBy: { id: 'asc' },
     });
     return rates.map((rate) => this.mapToResponseDto(rate));
   }
 
-  // Obtiene una tarifa de envío por ID
   async findOne(id: number): Promise<ShippingRateResponseDto> {
-    const rate = await this.shippingRateRepository.findOne({
+    const rate = await this.prisma.shippingRate.findUnique({
       where: { id },
-      relations: ['zone', 'service'],
+      include: { zone: true, service: true },
     });
 
     if (!rate) {
@@ -116,52 +124,69 @@ export class ShippingRateService {
     return this.mapToResponseDto(rate);
   }
 
-  // Actualiza una tarifa de envío por ID
-  async update(id: number, updateShippingRateDto: UpdateShippingRateDto): Promise<ShippingRateResponseDto> {
-    const rate = await this.shippingRateRepository.findOne({ where: { id } });
+  async update(
+    id: number,
+    updateShippingRateDto: UpdateShippingRateDto,
+  ): Promise<ShippingRateResponseDto> {
+    const rate = await this.prisma.shippingRate.findUnique({ where: { id } });
 
     if (!rate) {
       throw new NotFoundException(`Shipping rate with ID ${id} not found`);
     }
 
-    Object.assign(rate, updateShippingRateDto);
-    const updatedRate = await this.shippingRateRepository.save(rate);
+    const { zoneId, serviceId, ...rest } = updateShippingRateDto as any;
+    const data: any = { ...rest };
+
+    if ((updateShippingRateDto as any).zone) {
+        data.zone = { connect: { id: (updateShippingRateDto as any).zone.id } };
+    } else if (zoneId) {
+        data.zone = { connect: { id: zoneId } };
+    }
+
+    if ((updateShippingRateDto as any).service) {
+        data.service = { connect: { id: (updateShippingRateDto as any).service.id } };
+    } else if (serviceId) {
+        data.service = { connect: { id: serviceId } };
+    }
+
+    const updatedRate = await this.prisma.shippingRate.update({
+      where: { id },
+      data,
+      include: { zone: true, service: true },
+    });
     return this.mapToResponseDto(updatedRate);
   }
 
-  // Elimina una tarifa de envío por ID
   async remove(id: number): Promise<void> {
-    const result = await this.shippingRateRepository.delete(id);
-
-    if (result.affected === 0) {
-      throw new NotFoundException(`Shipping rate with ID ${id} not found`);
+    try {
+        await this.prisma.shippingRate.delete({ where: { id } });
+    } catch (error) {
+        throw new NotFoundException(`Shipping rate with ID ${id} not found`);
     }
   }
 
-  // Busca la zona correspondiente según la distancia en kilómetros
-  async findZoneByDistance(distanceKm: number): Promise<Zone | null> {
-    return this.zoneRepository.findOne({
+  async findZoneByDistance(distanceKm: number) {
+    return this.prisma.zone.findFirst({
       where: {
-        minDistance: LessThanOrEqual(distanceKm),
-        maxDistance: MoreThanOrEqual(distanceKm),
+        minDistance: { lte: distanceKm },
+        maxDistance: { gte: distanceKm },
       },
     });
   }
 
-  // Busca la tarifa de envío según zona, peso y servicio
   async findShippingRateByZoneAndWeight(
     zoneId: number,
     weight: number,
     serviceId: number,
-  ): Promise<ShippingRate> {
-    const rate = await this.shippingRateRepository.findOne({
+  ) {
+    const rate = await this.prisma.shippingRate.findFirst({
       where: {
-        zone: { id: zoneId },
-        service: { id: serviceId },
-        kgMin: LessThanOrEqual(weight),
-        kgMax: MoreThanOrEqual(weight),
+        zoneId: zoneId,
+        serviceId: serviceId,
+        kgMin: { lte: weight },
+        kgMax: { gte: weight },
       },
-      relations: ['zone', 'service'],
+      include: { zone: true, service: true },
     });
 
     if (!rate) {
@@ -173,20 +198,27 @@ export class ShippingRateService {
     return rate;
   }
 
-  // Busca la tarifa usando query builder (más flexible)
-  async findTarifa(zonaId: number, servicioId: number, peso: number): Promise<ShippingRate | null> {
-    return await this.shippingRateRepository
-      .createQueryBuilder('rate')
-      .where('rate.zone_id = :zonaId', { zonaId })
-      .andWhere('rate.service_id = :servicioId', { servicioId })
-      .andWhere(':peso BETWEEN rate.kg_min AND rate.kg_max', { peso })
-      .getOne();
+  async findTarifa(
+    zonaId: number,
+    servicioId: number,
+    peso: number,
+  ) {
+    return await this.prisma.shippingRate.findFirst({
+      where: {
+        zoneId: zonaId,
+        serviceId: servicioId,
+        kgMin: { lte: peso },
+        kgMax: { gte: peso },
+      },
+    });
   }
 
-  // Obtiene datos de zona y distancia entre dos códigos postales usando Google Maps
-  async getDatosZonaYDistancia(codigoOrigen: string, codigoDestino: string): Promise<{
+  async getDatosZonaYDistancia(
+    codigoOrigen: string,
+    codigoDestino: string,
+  ): Promise<{
     distanciaKm: number;
-    zona: Zone;
+    zona: any;
     ciudadOrigen: string;
     ciudadDestino: string;
   }> {
@@ -196,7 +228,8 @@ export class ShippingRateService {
       const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${cp},MX&key=${apiKey}`;
       const res = await firstValueFrom(this.httpService.get(url));
       const location = res.data.results?.[0]?.geometry?.location;
-      if (!location) throw new NotFoundException(`No se pudo geocodificar el CP: ${cp}`);
+      if (!location)
+        throw new NotFoundException(`No se pudo geocodificar el CP: ${cp}`);
       return location;
     };
 
@@ -208,7 +241,9 @@ export class ShippingRateService {
     const element = distanceRes.data.rows?.[0]?.elements?.[0];
 
     if (element?.status !== 'OK') {
-      throw new NotFoundException('No se pudo calcular la distancia entre los CP');
+      throw new NotFoundException(
+        'No se pudo calcular la distancia entre los CP',
+      );
     }
 
     const distanciaKm = Math.ceil(element.distance.value / 1000);
@@ -226,8 +261,7 @@ export class ShippingRateService {
     };
   }
 
-  // Mapea la entidad ShippingRate a un DTO de respuesta
-  private mapToResponseDto(rate: ShippingRate): ShippingRateResponseDto {
+  private mapToResponseDto(rate: any): ShippingRateResponseDto {
     return {
       id: rate.id,
       kgMin: rate.kgMin,
@@ -246,16 +280,14 @@ export class ShippingRateService {
     };
   }
 
-  // Obtiene todos los países internacionales ordenados por nombre
   async getAllInternationalCountries() {
-    return await this.countryRepository.find({
-      order: {
-        name: 'ASC',
+    return await this.prisma.internationalCountry.findMany({
+      orderBy: {
+        name: 'asc',
       },
     });
   }
 
-  // Obtiene la tarifa internacional usando peso volumétrico
   async getInternationalTariffByVolumetric(payload: {
     paisDestino: string;
     peso: number;
@@ -265,34 +297,36 @@ export class ShippingRateService {
   }) {
     const { paisDestino, peso, largo, ancho, alto } = payload;
 
-    const country = await this.internationalCountryRepository.findOne({
+    const country = await this.prisma.internationalCountry.findUnique({
       where: { name: paisDestino },
-      relations: ['zone'],
+      include: { zone: true },
     });
 
     if (!country || !country.zone) {
       throw new NotFoundException('País o zona no encontrada');
     }
 
-    // Calcula el peso volumétrico y el peso facturable
-    const pesoVol = +(largo * alto * ancho / 5000).toFixed(2);
+    const pesoVol = +((largo * alto * ancho) / 5000).toFixed(2);
     const pesoFacturable = Math.max(peso, pesoVol);
 
-    const tarifa = await this.tariffRepository.findOne({
+    const tarifa = await this.prisma.internationalTariff.findFirst({
       where: {
-        zone: { id: country.zone.id },
-        max_kg: MoreThanOrEqual(pesoFacturable),
+        zoneId: country.zone.id,
+        maxKg: { gte: pesoFacturable },
       },
-      order: { max_kg: 'ASC' },
+      orderBy: { maxKg: 'asc' },
     });
 
     if (!tarifa) {
       throw new NotFoundException('No se encontró tarifa para ese peso');
     }
 
+    const basePrice = tarifa.basePrice || 0;
+    const ivaPercent = tarifa.ivaPercent || 0;
+
     const adicional = 0;
-    const subtotal = tarifa.base_price + adicional;
-    const iva = +(subtotal * (tarifa.iva_percent / 100)).toFixed(2);
+    const subtotal = basePrice + adicional;
+    const iva = +(subtotal * (ivaPercent / 100)).toFixed(2);
     const total = +(subtotal + iva).toFixed(2);
 
     return {
@@ -301,17 +335,16 @@ export class ShippingRateService {
       pesoFisico: peso,
       pesoVolumetrico: pesoVol,
       pesoCobrado: pesoFacturable,
-      precioBase: tarifa.base_price,
+      precioBase: basePrice,
       iva,
       total,
     };
   }
 
-  // Obtiene información de un país internacional
   async findCountryInfo(paisDestino: string) {
-    const country = await this.countryRepository.findOne({
+    const country = await this.prisma.internationalCountry.findUnique({
       where: { name: paisDestino },
-      relations: ['zone'],
+      include: { zone: true },
     });
 
     if (!country) {
@@ -320,8 +353,8 @@ export class ShippingRateService {
 
     return {
       pais: country.name,
-      zona: country.zone.code,
-      descripcionZona: country.zone.description,
+      zona: country.zone?.code,
+      descripcionZona: country.zone?.description,
     };
   }
 }

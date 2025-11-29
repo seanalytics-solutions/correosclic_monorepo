@@ -1,67 +1,76 @@
 // apps/backend/src/carrito/carrito.service.ts
 
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Carrito } from './entities/carrito.entity';
-import { Profile } from '../profile/entities/profile.entity';
-import { Product } from '../products/entities/product.entity';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class CarritoService {
-  constructor(
-    @InjectRepository(Carrito)
-    private carritoRepo: Repository<Carrito>,
+  constructor(private prisma: PrismaService) {}
 
-    @InjectRepository(Profile)
-    private profileRepo: Repository<Profile>,
-
-    @InjectRepository(Product)
-    private productRepo: Repository<Product>
-  ) {}
-  
   async obtenerCarrito(profileId: number) {
-    const productos = await this.carritoRepo.find({
-      where: { usuario: { id: profileId }, activo: true },
-      relations: ['producto','producto.images'],
+    const productos = await this.prisma.carrito.findMany({
+      where: { profileId, activo: true },
+      include: {
+        producto: {
+          include: {
+            images: true,
+          },
+        },
+      },
     });
 
     if (!productos.length) {
-      throw new NotFoundException('El usuario no tiene productos en el carrito');
+      throw new NotFoundException(
+        'El usuario no tiene productos en el carrito',
+      );
     }
 
     return productos;
   }
 
-  async agregarProducto(profileId: number, productId: number, cantidad: number) {
-    const usuario = await this.profileRepo.findOneBy({ id: profileId });
-    const producto = await this.productRepo.findOneBy({ id: productId });
+  async agregarProducto(
+    profileId: number,
+    productId: number,
+    cantidad: number,
+  ) {
+    const usuario = await this.prisma.profile.findUnique({
+      where: { id: profileId },
+    });
+    const producto = await this.prisma.product.findUnique({
+      where: { id: productId },
+    });
 
     if (!usuario || !producto) {
       throw new NotFoundException('Usuario o producto no encontrado');
     }
 
-    const existente = await this.carritoRepo.findOne({
+    const existente = await this.prisma.carrito.findFirst({
       where: {
-        usuario: { id: profileId },
-        producto: { id: productId },
+        profileId,
+        productoId: productId,
       },
     });
 
     if (existente) {
-      existente.cantidad += cantidad;
-      return this.carritoRepo.save(existente);
+      return this.prisma.carrito.update({
+        where: { id: existente.id },
+        data: { cantidad: existente.cantidad + cantidad },
+      });
     }
 
-    const item = this.carritoRepo.create({
-      usuario,
-      producto,
-      cantidad,
-      precio_unitario: producto.precio,
-      activo: true,
+    return this.prisma.carrito.create({
+      data: {
+        profileId,
+        productoId: productId,
+        cantidad,
+        precio_unitario: producto.precio,
+        activo: true,
+      },
     });
-
-    return this.carritoRepo.save(item);
   }
 
   async editarCantidad(id: number, nuevaCantidad: number) {
@@ -69,27 +78,29 @@ export class CarritoService {
       throw new BadRequestException('La cantidad mínima debe ser 1');
     }
 
-    const item = await this.carritoRepo.findOneBy({ id });
+    const item = await this.prisma.carrito.findUnique({ where: { id } });
     if (!item) {
       throw new NotFoundException('Producto en carrito no encontrado');
     }
 
-    item.cantidad = nuevaCantidad;
-    return this.carritoRepo.save(item);
+    return this.prisma.carrito.update({
+      where: { id },
+      data: { cantidad: nuevaCantidad },
+    });
   }
 
   async eliminarDelCarrito(id: number) {
-    const item = await this.carritoRepo.findOneBy({ id });
+    const item = await this.prisma.carrito.findUnique({ where: { id } });
     if (!item) {
       throw new NotFoundException('Producto en carrito no encontrado');
     }
 
-    return this.carritoRepo.remove(item);
+    return this.prisma.carrito.delete({ where: { id } });
   }
 
   async subtotal(profileId: number) {
-    const productos = await this.carritoRepo.find({
-      where: { usuario: { id: profileId }, activo: true },
+    const productos = await this.prisma.carrito.findMany({
+      where: { profileId, activo: true },
     });
 
     const subtotal = productos.reduce((acc, item) => {
@@ -109,3 +120,4 @@ export class CarritoService {
     };
   }
 }
+

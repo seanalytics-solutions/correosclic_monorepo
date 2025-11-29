@@ -194,7 +194,7 @@ export class ProductsController {
    * @returns Un arreglo de productos activos.
    */
   @Get('active')
-  findAllActive(): Promise<Product[]> {
+  findAllActive(): Promise<any[]> {
     return this.productsService.findAllActive();
   }
 
@@ -282,7 +282,12 @@ export class ProductsController {
   }
 
   @Get('categories/:id_category')
-  @ApiParam({ name: 'id_category', type: Number, description: 'ID de la categoría para traer todos los productos correspondientes a dicha categoría'})
+  @ApiParam({
+    name: 'id_category',
+    type: Number,
+    description:
+      'ID de la categoría para traer todos los productos correspondientes a dicha categoría',
+  })
   async fetchProductsByCategory(@Param('id_category') id_category: number) {
     return this.productsService.fetch_products_by_category(id_category);
   }

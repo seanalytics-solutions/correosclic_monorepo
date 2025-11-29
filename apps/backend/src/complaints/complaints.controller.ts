@@ -23,7 +23,7 @@ import {
   ComplaintStatus,
   ComplaintType,
   ComplaintPriority,
-} from './entities/complaint.entity';
+} from './constants';
 
 @ApiTags('Complaints')
 @Controller('complaints')

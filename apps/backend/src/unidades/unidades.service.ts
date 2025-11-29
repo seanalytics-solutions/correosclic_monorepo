@@ -4,23 +4,13 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
-import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, In } from 'typeorm';
-
-import { Unidad } from './entities/unidad.entity';
-import { TipoVehiculo } from './entities/tipo-vehiculo.entity';
-import { TipoVehiculoOficina } from './entities/tipo-vehiculo-oficina.entity';
-import { Oficina } from '../oficinas/entities/oficina.entity';
-import { Conductor } from '../conductores/entities/conductor.entity';
-
+import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateUnidadDto } from './dto/create-unidad.dto';
 import { AssignConductorDto } from './dto/assign-conductor.dto';
 import { AssignZonaDto } from './dto/assign-zona.dto';
 import { UnidadResponseDto } from './dto/unidad-response.dto';
 import { OficinaTipoVehiculoDto } from './dto/oficina-tipo-vehiculo.dto';
-
 import { HistorialAsignacionesService } from '../historial-asignaciones/historial-asignaciones.service';
-
 import * as QRCode from 'qrcode';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -28,302 +18,286 @@ import * as path from 'path';
 @Injectable()
 export class UnidadesService {
   constructor(
-    @InjectRepository(Unidad)
-    private unidadRepo: Repository<Unidad>,
-
-    @InjectRepository(TipoVehiculo)
-    private tipoVehiculoRepo: Repository<TipoVehiculo>,
-
-    @InjectRepository(Oficina)
-    private oficinaRepo: Repository<Oficina>,
-
-    @InjectRepository(TipoVehiculoOficina)
-    private tipoOficinaRepo: Repository<TipoVehiculoOficina>,
-
-    @InjectRepository(Conductor)
-    private conductorRepo: Repository<Conductor>,
-
+    private prisma: PrismaService,
     private historialSvc: HistorialAsignacionesService,
-
-    @InjectDataSource()
-    private dataSource: DataSource,
   ) {}
 
   async findAll(): Promise<UnidadResponseDto[]> {
-    const all = await this.unidadRepo.find({
-      relations: ['tipoVehiculo', 'oficina', 'conductor'],
+    const all = await this.prisma.unidad.findMany({
+      include: { tipoVehiculo: true, oficina: true, conductor: true },
     });
-    return all.map(u => this.mapToResponse(u));
+    return all.map((u) => this.mapToResponse(u));
   }
 
-  async findByOficina(claveOficina: string): Promise<Omit<UnidadResponseDto, 'claveOficina' | 'estado'>[]> {
-    const list = await this.unidadRepo.find({
+  async findByOficina(
+    claveOficina: string,
+  ): Promise<Omit<UnidadResponseDto, 'claveOficina' | 'estado'>[]> {
+    const list = await this.prisma.unidad.findMany({
       where: {
         oficina: { clave_cuo: claveOficina },
         estado: 'disponible',
       },
-      relations: ['tipoVehiculo', 'oficina', 'conductor'],
+      include: { tipoVehiculo: true, oficina: true, conductor: true },
     });
-    return list.map(u => {
+    return list.map((u) => {
       const { estado, claveOficina, ...rest } = this.mapToResponse(u);
       return rest;
     });
   }
 
   async create(dto: CreateUnidadDto): Promise<UnidadResponseDto> {
-    const qr = this.dataSource.createQueryRunner();
-    await qr.connect();
-    await qr.startTransaction();
-
-    try {
-      const oficina = await this.oficinaRepo.findOne({
+    return this.prisma.$transaction(async (tx) => {
+      const oficina = await tx.oficina.findUnique({
         where: { clave_cuo: dto.claveOficina },
       });
       if (!oficina) {
-        throw new NotFoundException(`Oficina con clave ${dto.claveOficina} no encontrada`);
+        throw new NotFoundException(
+          `Oficina con clave ${dto.claveOficina} no encontrada`,
+        );
       }
 
-      const permiso = await this.tipoOficinaRepo.findOne({
+      const permiso = await tx.tipoVehiculoOficina.findFirst({
         where: {
           tipoOficina: oficina.tipo_cuo,
           tipoVehiculo: { tipoVehiculo: dto.tipoVehiculo },
         },
-        relations: ['tipoVehiculo'],
+        include: { tipoVehiculo: true },
       });
       if (!permiso) {
-        throw new ConflictException(`Tipo de vehículo no permitido para oficina tipo ${oficina.tipo_cuo}`);
+        throw new ConflictException(
+          `Tipo de vehículo no permitido para oficina tipo ${oficina.tipo_cuo}`,
+        );
       }
 
-      const tv = await this.tipoVehiculoRepo.findOne({
+      const tv = await tx.tipoVehiculo.findUnique({
         where: { tipoVehiculo: dto.tipoVehiculo },
       });
       if (!tv) {
-        throw new NotFoundException(`Tipo de vehículo ${dto.tipoVehiculo} no encontrado`);
+        throw new NotFoundException(
+          `Tipo de vehículo ${dto.tipoVehiculo} no encontrado`,
+        );
       }
 
-      const nueva = this.unidadRepo.create({
-        tipoVehiculo: tv,
-        placas: dto.placas,
-        volumenCarga: dto.volumenCarga,
-        numEjes: dto.numEjes,
-        numLlantas: dto.numLlantas,
-        tarjetaCirculacion: dto.tarjetaCirculacion,
-        fechaAlta: new Date(),
-        estado: 'disponible',
-        oficina,
+      const nueva = await tx.unidad.create({
+        data: {
+          tipoVehiculoId: tv.id,
+          placas: dto.placas,
+          volumenCarga: dto.volumenCarga,
+          numEjes: dto.numEjes,
+          numLlantas: dto.numLlantas,
+          tarjetaCirculacion: dto.tarjetaCirculacion,
+          fechaAlta: new Date(),
+          estado: 'disponible',
+          claveOficina: oficina.clave_cuo,
+        },
+        include: { tipoVehiculo: true, oficina: true, conductor: true },
       });
 
-      const saved = await qr.manager.save(nueva);
-      await qr.commitTransaction();
-      return this.mapToResponse(saved);
-    } catch (err) {
-      await qr.rollbackTransaction();
-      throw err;
-    } finally {
-      await qr.release();
-    }
+      return this.mapToResponse(nueva);
+    });
   }
 
-  async assignConductor(placas: string, dto: AssignConductorDto): Promise<UnidadResponseDto> {
-      const qr = this.dataSource.createQueryRunner();
-      await qr.connect();
-      await qr.startTransaction();
+  async assignConductor(
+    placas: string,
+    dto: AssignConductorDto,
+  ): Promise<UnidadResponseDto> {
+    return this.prisma.$transaction(async (tx) => {
+      const unidad = await tx.unidad.findUnique({
+        where: { placas },
+        include: { oficina: true, conductor: true, tipoVehiculo: true },
+      });
 
-      try {
-          const unidad = await this.unidadRepo.findOne({
-              where: { placas },
-              relations: ['oficina', 'conductor', 'tipoVehiculo'],
-          });
-          
-          if (!unidad) throw new NotFoundException(`Unidad con placas ${placas} no encontrada`);
+      if (!unidad)
+        throw new NotFoundException(
+          `Unidad con placas ${placas} no encontrada`,
+        );
 
-          // Desasignar conductor
-          if (dto.curpConductor === 'S/C') {
-              if (unidad.conductor) {
-                  // 1. Registrar retorno al origen en el historial
-                  await this.historialSvc.registrarRetornoOrigen(
-                      unidad.conductor.curp,
-                      placas
-                  );
-                  
-                  // 2. Liberar al conductor
-                  unidad.conductor.disponibilidad = true;
-                  await qr.manager.save(unidad.conductor);
-              }
-              
-              // 3. Limpiar la relación y establecer curp_conductor como null
-              unidad.conductor = null;
-              unidad.curpConductor = null; // Esta línea es crucial
-              unidad.estado = 'disponible';
-              
-              const upd = await qr.manager.save(unidad);
-              await qr.commitTransaction();
-              return this.mapToResponse(upd);
-          }
-
-          // Resto del código para asignación normal...
-          const conductor = await this.conductorRepo.findOne({
-              where: {
-                  curp: dto.curpConductor,
-                  oficina: { clave_oficina_postal: unidad.oficina.clave_oficina_postal },
-              },
-              relations: ['oficina'],
-          });
-          
-          if (!conductor) {
-              throw new NotFoundException(`Conductor ${dto.curpConductor} no encontrado en oficina ${unidad.oficina.clave_oficina_postal}`);
-          }
-          
-          if (!conductor.disponibilidad || !conductor.licenciaVigente) {
-              throw new ConflictException('Conductor no disponible o licencia no vigente');
-          }
-
-          if (unidad.conductor) {
-              await this.historialSvc.finalizarAsignacion(unidad.conductor.curp, placas);
-              unidad.conductor.disponibilidad = true;
-              await qr.manager.save(unidad.conductor);
-          }
-
-          await this.historialSvc.registrarAsignacion(
-              conductor.nombreCompleto,
-              conductor.curp,
-              placas,
-              unidad.oficina.clave_cuo,
-              unidad.zonaAsignada,
-          );
-          
-          conductor.disponibilidad = false;
-          await qr.manager.save(conductor);
-
-          unidad.conductor = conductor;
-          unidad.curpConductor = conductor.curp; // Asegurar que se actualice
-          unidad.estado = 'no disponible';
-          
-          const upd = await qr.manager.save(unidad);
-          await qr.commitTransaction();
-          return this.mapToResponse(upd);
-      } catch (err) {
-          await qr.rollbackTransaction();
-          throw err;
-      } finally {
-          await qr.release();
-    }
-  }
-
-  async assignZona(placas: string, dto: AssignZonaDto): Promise<UnidadResponseDto> {
-    const qr = this.dataSource.createQueryRunner();
-    await qr.connect();
-    await qr.startTransaction();
-
-    try {
-        // 1. Obtener unidad con relaciones
-        const unidad = await this.unidadRepo.findOne({
-            where: { placas },
-            relations: ['oficina', 'tipoVehiculo', 'conductor']
-        });
-        
-        if (!unidad) throw new NotFoundException(`Unidad con placas ${placas} no encontrada`);
-        if (!unidad.oficina) throw new BadRequestException(`La unidad no tiene oficina asignada`);
-
-        const oficinaOrigen = unidad.oficina;
-
-        // 2. Validar no auto-asignación
-        if (dto.claveCuoDestino === oficinaOrigen.clave_cuo) {
-            throw new BadRequestException(`No puedes asignar la unidad a su misma oficina de origen`);
-        }
-
-        // 3. Buscar oficina destino
-        const oficinaDestino = await this.oficinaRepo.findOne({ 
-            where: { clave_cuo: dto.claveCuoDestino } 
-        });
-        if (!oficinaDestino) throw new NotFoundException(`Oficina destino no encontrada`);
-
-        // 4. Obtener claves de zona de la oficina origen
-        const clavesZonaOrigen = oficinaOrigen.clave_unica_zona 
-            ? oficinaOrigen.clave_unica_zona.split(',').map(z => z.trim())
-            : [];
-
-        // 5. Verificar si el destino está en las claves de zona del origen
-        if (!clavesZonaOrigen.includes(dto.claveCuoDestino)) {
-            // Si no está, verificar relación inversa
-            const clavesZonaDestino = oficinaDestino.clave_unica_zona 
-                ? oficinaDestino.clave_unica_zona.split(',').map(z => z.trim())
-                : [];
-
-            if (!clavesZonaDestino.includes(oficinaOrigen.clave_cuo)) {
-                // Si no hay relación bidireccional, obtener destinos permitidos
-                const destinosPermitidos = await this.getOficinasDestinoValidas(placas);
-                
-                // Depuración adicional
-                console.log('Oficina origen:', oficinaOrigen.clave_cuo, 'Claves zona:', oficinaOrigen.clave_unica_zona);
-                console.log('Oficina destino:', oficinaDestino.clave_cuo, 'Claves zona:', oficinaDestino.clave_unica_zona);
-                console.log('Destinos permitidos:', destinosPermitidos.map(o => o.clave_cuo));
-
-                throw new BadRequestException(
-                    `Ruta no permitida. Destinos válidos para ${oficinaOrigen.clave_cuo}: ` +
-                    (destinosPermitidos.length > 0 ? destinosPermitidos.map(o => o.clave_cuo).join(', ') : 'No hay destinos válidos')
-                );
-            }
-        }
-
-        // 6. Actualizar la zona asignada
-        unidad.zonaAsignada = oficinaDestino.clave_cuo;
-        await this.unidadRepo.save(unidad);
-        
-        // 7. Registrar en historial si hay conductor
+      // Desasignar conductor
+      if (dto.curpConductor === 'S/C') {
         if (unidad.conductor) {
-            await this.historialSvc.registrarAsignacion(
-                unidad.conductor.nombreCompleto,
-                unidad.conductor.curp,
-                placas,
-                unidad.oficina.clave_cuo,
-                unidad.zonaAsignada
-            );
+          // 1. Registrar retorno al origen en el historial
+          await this.historialSvc.registrarRetornoOrigen(
+            unidad.conductor.curp,
+            placas,
+          );
+
+          // 2. Liberar al conductor
+          await tx.conductor.update({
+            where: { curp: unidad.conductor.curp },
+            data: { disponibilidad: true },
+          });
         }
 
-        await qr.commitTransaction();
-        return this.mapToResponse(unidad);
-    } catch (err) {
-        await qr.rollbackTransaction();
-        throw err;
-    } finally {
-        await qr.release();
-    }
-}
+        // 3. Limpiar la relación y establecer curp_conductor como null
+        const upd = await tx.unidad.update({
+          where: { placas },
+          data: {
+            curpConductor: null,
+            estado: 'disponible',
+          },
+          include: { oficina: true, conductor: true, tipoVehiculo: true },
+        });
 
-  /*private async validarRutaBidireccional(claveOrigen: string, claveDestino: string): Promise<boolean> {
-    const oficinaOrigen = await this.oficinaRepo.findOne({ 
-      where: { clave_cuo: claveOrigen } 
+        return this.mapToResponse(upd);
+      }
+
+      // Resto del código para asignación normal...
+      const conductor = await tx.conductor.findFirst({
+        where: {
+          curp: dto.curpConductor,
+          oficina: {
+            clave_oficina_postal: unidad.oficina.clave_oficina_postal,
+          },
+        },
+        include: { oficina: true },
+      });
+
+      if (!conductor) {
+        throw new NotFoundException(
+          `Conductor ${dto.curpConductor} no encontrado en oficina ${unidad.oficina.clave_oficina_postal}`,
+        );
+      }
+
+      if (!conductor.disponibilidad || !conductor.licenciaVigente) {
+        throw new ConflictException(
+          'Conductor no disponible o licencia no vigente',
+        );
+      }
+
+      if (unidad.conductor) {
+        await this.historialSvc.finalizarAsignacion(
+          unidad.conductor.curp,
+          placas,
+        );
+        await tx.conductor.update({
+          where: { curp: unidad.conductor.curp },
+          data: { disponibilidad: true },
+        });
+      }
+
+      await this.historialSvc.registrarAsignacion(
+        conductor.nombreCompleto,
+        conductor.curp,
+        placas,
+        unidad.oficina.clave_cuo,
+        unidad.zonaAsignada,
+      );
+
+      await tx.conductor.update({
+        where: { curp: conductor.curp },
+        data: { disponibilidad: false },
+      });
+
+      const upd = await tx.unidad.update({
+        where: { placas },
+        data: {
+          curpConductor: conductor.curp,
+          estado: 'no disponible',
+        },
+        include: { oficina: true, conductor: true, tipoVehiculo: true },
+      });
+
+      return this.mapToResponse(upd);
     });
-    
-    const oficinaDestino = await this.oficinaRepo.findOne({ 
-      where: { clave_cuo: claveDestino } 
+  }
+
+  async assignZona(
+    placas: string,
+    dto: AssignZonaDto,
+  ): Promise<UnidadResponseDto> {
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Obtener unidad con relaciones
+      const unidad = await tx.unidad.findUnique({
+        where: { placas },
+        include: { oficina: true, tipoVehiculo: true, conductor: true },
+      });
+
+      if (!unidad)
+        throw new NotFoundException(
+          `Unidad con placas ${placas} no encontrada`,
+        );
+      if (!unidad.oficina)
+        throw new BadRequestException(`La unidad no tiene oficina asignada`);
+
+      const oficinaOrigen = unidad.oficina;
+
+      // 2. Validar no auto-asignación
+      if (dto.claveCuoDestino === oficinaOrigen.clave_cuo) {
+        throw new BadRequestException(
+          `No puedes asignar la unidad a su misma oficina de origen`,
+        );
+      }
+
+      // 3. Buscar oficina destino
+      const oficinaDestino = await tx.oficina.findUnique({
+        where: { clave_cuo: dto.claveCuoDestino },
+      });
+      if (!oficinaDestino)
+        throw new NotFoundException(`Oficina destino no encontrada`);
+
+      // 4. Obtener claves de zona de la oficina origen
+      const clavesZonaOrigen = oficinaOrigen.clave_unica_zona
+        ? oficinaOrigen.clave_unica_zona.split(',').map((z) => z.trim())
+        : [];
+
+      // 5. Verificar si el destino está en las claves de zona del origen
+      if (!clavesZonaOrigen.includes(dto.claveCuoDestino)) {
+        // Si no está, verificar relación inversa
+        const clavesZonaDestino = oficinaDestino.clave_unica_zona
+          ? oficinaDestino.clave_unica_zona.split(',').map((z) => z.trim())
+          : [];
+
+        if (!clavesZonaDestino.includes(oficinaOrigen.clave_cuo)) {
+          // Si no hay relación bidireccional, obtener destinos permitidos
+          const destinosPermitidos =
+            await this.getOficinasDestinoValidas(placas);
+
+          throw new BadRequestException(
+            `Ruta no permitida. Destinos válidos para ${oficinaOrigen.clave_cuo}: ` +
+              (destinosPermitidos.length > 0
+                ? destinosPermitidos.map((o) => o.clave_cuo).join(', ')
+                : 'No hay destinos válidos'),
+          );
+        }
+      }
+
+      // 6. Actualizar la zona asignada
+      const upd = await tx.unidad.update({
+        where: { placas },
+        data: { zonaAsignada: oficinaDestino.clave_cuo },
+        include: { oficina: true, tipoVehiculo: true, conductor: true },
+      });
+
+      // 7. Registrar en historial si hay conductor
+      if (unidad.conductor) {
+        await this.historialSvc.registrarAsignacion(
+          unidad.conductor.nombreCompleto,
+          unidad.conductor.curp,
+          placas,
+          unidad.oficina.clave_cuo,
+          upd.zonaAsignada,
+        );
+      }
+
+      return this.mapToResponse(upd);
     });
+  }
 
-    if (!oficinaOrigen || !oficinaDestino) return false;
-
-    // Convertir claves a arrays
-    const zonasOrigen = oficinaOrigen.clave_unica_zona 
-      ? oficinaOrigen.clave_unica_zona.split(',').map(z => z.trim())
-      : [];
-    
-    const zonasDestino = oficinaDestino.clave_unica_zona 
-      ? oficinaDestino.clave_unica_zona.split(',').map(z => z.trim())
-      : [];
-
-    // Verificar relación bidireccional
-    return zonasDestino.includes(claveOrigen) || zonasOrigen.includes(claveDestino);
-  }*/
-
-  async getTiposVehiculoPorOficina(claveOficina: string): Promise<OficinaTipoVehiculoDto> {
-    const oficina = await this.oficinaRepo.findOne({ where: { clave_cuo: claveOficina } });
+  async getTiposVehiculoPorOficina(
+    claveOficina: string,
+  ): Promise<OficinaTipoVehiculoDto> {
+    const oficina = await this.prisma.oficina.findUnique({
+      where: { clave_cuo: claveOficina },
+    });
     if (!oficina) {
-      throw new NotFoundException(`Oficina con clave ${claveOficina} no encontrada`);
+      throw new NotFoundException(
+        `Oficina con clave ${claveOficina} no encontrada`,
+      );
     }
 
-    const list = await this.tipoOficinaRepo.find({
+    const list = await this.prisma.tipoVehiculoOficina.findMany({
       where: { tipoOficina: oficina.tipo_cuo },
-      relations: ['tipoVehiculo'],
+      include: { tipoVehiculo: true },
     });
 
     if (list.length === 0) {
@@ -340,54 +314,55 @@ export class UnidadesService {
       claveOficina,
       nombreOficina: oficina.nombre_cuo,
       tipo: oficina.tipo_cuo,
-      tiposVehiculo: list.map(t => t.tipoVehiculo.tipoVehiculo),
+      tiposVehiculo: list.map((t) => t.tipoVehiculo.tipoVehiculo),
     };
   }
 
   async getOficinasDestinoValidas(placas: string) {
-      const unidad = await this.unidadRepo.findOne({
-          where: { placas },
-          relations: ['oficina']
-      });
-      
-      if (!unidad?.oficina) throw new NotFoundException('Unidad u oficina no encontrada');
-      
-      const oficinaOrigen = unidad.oficina;
-      const clavesZonaOrigen = oficinaOrigen.clave_unica_zona 
-          ? oficinaOrigen.clave_unica_zona.split(',').map(z => z.trim())
-          : [];
+    const unidad = await this.prisma.unidad.findUnique({
+      where: { placas },
+      include: { oficina: true },
+    });
 
-      // 1. Oficinas que están en las claves de zona del origen (destinos directos)
-      const destinosDirectos = await this.oficinaRepo.find({
-          where: {
-              clave_cuo: In(clavesZonaOrigen),
-              activo: true // Solo oficinas activas
-          }
-      });
+    if (!unidad?.oficina)
+      throw new NotFoundException('Unidad u oficina no encontrada');
 
-      // 2. Oficinas que tienen al origen en sus claves de zona (relación inversa)
-      const destinosInversos = await this.oficinaRepo
-          .createQueryBuilder('oficina')
-          .where(`:claveOrigen = ANY(STRING_TO_ARRAY(oficina.clave_unica_zona, ','))`, {
-              claveOrigen: oficinaOrigen.clave_cuo
-          })
-          .andWhere('oficina.activo = :activo', { activo: true })
-          .getMany();
+    const oficinaOrigen = unidad.oficina;
+    const clavesZonaOrigen = oficinaOrigen.clave_unica_zona
+      ? oficinaOrigen.clave_unica_zona.split(',').map((z) => z.trim())
+      : [];
 
-      // Combinar y eliminar duplicados usando un Map
-      const destinosUnicos = new Map<string, Oficina>();
-      
-      [...destinosDirectos, ...destinosInversos].forEach(oficina => {
-          if (oficina.clave_cuo !== oficinaOrigen.clave_cuo) {
-              destinosUnicos.set(oficina.clave_cuo, oficina);
-          }
-      });
+    // 1. Oficinas que están en las claves de zona del origen (destinos directos)
+    const destinosDirectos = await this.prisma.oficina.findMany({
+      where: {
+        clave_cuo: { in: clavesZonaOrigen },
+        activo: true,
+      },
+    });
 
-      return Array.from(destinosUnicos.values());
+    // 2. Oficinas que tienen al origen en sus claves de zona (relación inversa)
+    const destinosInversos = await this.prisma.$queryRaw`
+      SELECT * FROM oficinas 
+      WHERE ${oficinaOrigen.clave_cuo} = ANY(STRING_TO_ARRAY(clave_unica_zona, ','))
+      AND activo = true
+    `;
+
+    // Combinar y eliminar duplicados usando un Map
+    const destinosUnicos = new Map<string, any>();
+
+    [...destinosDirectos, ...(destinosInversos as any[])].forEach((oficina) => {
+      if (oficina.clave_cuo !== oficinaOrigen.clave_cuo) {
+        destinosUnicos.set(oficina.clave_cuo, oficina);
+      }
+    });
+
+    return Array.from(destinosUnicos.values());
   }
 
-  async generarQRsDeUnidades(): Promise<{ id: string; qr: string; filePath: string }[]> {
-    const unidades = await this.unidadRepo.find();
+  async generarQRsDeUnidades(): Promise<
+    { id: string; qr: string; filePath: string }[]
+  > {
+    const unidades = await this.prisma.unidad.findMany();
     const outputDir = path.join(__dirname, 'qrs');
 
     if (!fs.existsSync(outputDir)) {
@@ -398,7 +373,7 @@ export class UnidadesService {
       unidades.map(async (unidad) => {
         const placasSanitizado = unidad.placas.replace(/[^a-zA-Z0-9_-]/g, '_');
         const filePath = path.join(outputDir, `${placasSanitizado}.png`);
-        
+
         await QRCode.toFile(filePath, unidad.id.toString());
         const qr = await QRCode.toDataURL(unidad.id.toString());
 
@@ -409,7 +384,7 @@ export class UnidadesService {
     return resultados;
   }
 
-  private mapToResponse(u: Unidad): UnidadResponseDto {
+  private mapToResponse(u: any): UnidadResponseDto {
     return {
       tipoVehiculo: u.tipoVehiculo.tipoVehiculo,
       placas: u.placas,
@@ -425,11 +400,15 @@ export class UnidadesService {
     };
   }
 
-  async findOne(id: number): Promise<Unidad> {
-    const unidad = await this.unidadRepo.findOne({ where: { id }, relations: ['asignada', 'oficina'] });
+  async findOne(id: number) {
+    const unidad = await this.prisma.unidad.findUnique({
+      where: { id },
+      include: { asignada: true, oficina: true },
+    });
     if (!unidad) {
       throw new NotFoundException(`Unidad con ID ${id} no encontrada`);
     }
     return unidad;
   }
 }
+

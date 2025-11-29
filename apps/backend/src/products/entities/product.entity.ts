@@ -6,13 +6,10 @@ import {
   OneToMany,
   ManyToOne,
 } from 'typeorm';
-import { Favorito } from '../../favoritos/entities/favorito.entity';
-import { Carrito } from '../../carrito/entities/carrito.entity';
 import { ProductImage } from './product-image.entity';
 import { ApiProperty } from '@nestjs/swagger';
 import { Review } from '../../review/entities/review.entity';
 import { CreatedCouponEntity } from '../../coupons/entities/created-coupon.entity';
-import { CreateSellerEntity } from '../../create_seller/entities/create_seller.entity';
 
 @Entity('productos')
 export class Product {
@@ -89,13 +86,6 @@ export class Product {
   @Column({ type: 'int', nullable: true })
   idPerfil: number | null;
 
-  @ApiProperty({ example: 1 })
-  @ManyToOne(
-    () => CreateSellerEntity,
-    (createSellerEntity) => createSellerEntity.products,
-  )
-  seller: CreateSellerEntity;
-
   @ApiProperty({ example: '2', nullable: true })
   @Column({ type: 'int', nullable: true })
   id_category: number | null;
@@ -103,12 +93,6 @@ export class Product {
   @ApiProperty({ type: () => [ProductImage] })
   @OneToMany(() => ProductImage, (img) => img.product, { cascade: true })
   images: ProductImage[];
-
-  @OneToMany(() => Favorito, (favorito) => favorito.producto)
-  favoritos: Favorito[];
-
-  @OneToMany(() => Carrito, (carrito) => carrito.producto)
-  carrito: Carrito[];
 
   @ApiProperty({
     type: () => [Review],

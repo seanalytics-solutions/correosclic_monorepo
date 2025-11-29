@@ -1,12 +1,10 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { PrismaModule } from 'src/prisma/prisma.module';
 import { CreateSellerService } from './create-seller.service';
 import { CreateSellerController } from './create-seller.controller';
 
-import { CreateSellerEntity } from './entities/create_seller.entity';
-
 @Module({
-  imports: [TypeOrmModule.forFeature([CreateSellerEntity])],
+  imports: [PrismaModule],
   controllers: [CreateSellerController],
   providers: [CreateSellerService],
   exports: [CreateSellerService],

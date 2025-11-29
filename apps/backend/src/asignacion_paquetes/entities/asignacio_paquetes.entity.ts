@@ -18,6 +18,8 @@ export class AsignacionPaquetes {
 
   @ManyToOne(() => Paquete, { nullable: true })
   @JoinColumn({ name: 'idPaqueteId' })
-  idPaquete: Paquete;
+  idPaquete?: Paquete | null;
 
+  paquete?: Paquete | null;
+  idPaqueteId?: number | null;
 }

@@ -1,19 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { PrismaService } from 'src/prisma/prisma.service';
 import {
-  Repository,
-  In,
-  Between,
-  MoreThanOrEqual,
-  LessThanOrEqual,
-} from 'typeorm';
-import {
-  Complaint,
   ComplaintStatus,
   ComplaintType,
   ComplaintPriority,
-} from './entities/complaint.entity';
-import { PedidoProducto } from '../pedidos/entities/pedido.entity';
+} from './constants';
 import { CreateComplaintDto } from './dto/create-complaint.dto';
 import { UpdateComplaintDto } from './dto/update-complaint.dto';
 
@@ -27,55 +18,46 @@ interface SearchFilters {
 
 @Injectable()
 export class ComplaintsService {
-  constructor(
-    @InjectRepository(Complaint)
-    private readonly complaintsRepository: Repository<Complaint>,
-    @InjectRepository(PedidoProducto)
-    private readonly pedidoProductoRepository: Repository<PedidoProducto>,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
-  async create(createComplaintDto: CreateComplaintDto): Promise<Complaint> {
+  async create(createComplaintDto: CreateComplaintDto) {
     const { profileId, orderId, defectiveProductIds, ...rest } =
       createComplaintDto;
 
-    let defectiveProducts: PedidoProducto[] = [];
-    if (defectiveProductIds && defectiveProductIds.length > 0) {
-      defectiveProducts = await this.pedidoProductoRepository.find({
-        where: { id: In(defectiveProductIds) },
-      });
-    }
-
-    const complaint = this.complaintsRepository.create({
-      ...rest,
-      profile: { id: profileId },
-      pedido: orderId ? { id: orderId } : undefined,
-      defectiveProducts,
-    });
-
-    return await this.complaintsRepository.save(complaint);
-  }
-
-  async findAll(): Promise<Complaint[]> {
-    return await this.complaintsRepository.find({
-      relations: [
-        'profile',
-        'pedido',
-        'defectiveProducts',
-        'defectiveProducts.producto',
-      ],
-      order: { createdAt: 'DESC' },
+    return this.prisma.complaint.create({
+      data: {
+        ...rest,
+        profile: { connect: { id: profileId } },
+        pedido: orderId ? { connect: { id: orderId } } : undefined,
+        defectiveProducts:
+          defectiveProductIds && defectiveProductIds.length > 0
+            ? {
+                connect: defectiveProductIds.map((id) => ({ id })),
+              }
+            : undefined,
+      },
     });
   }
 
-  async findOne(id: number): Promise<Complaint> {
-    const complaint = await this.complaintsRepository.findOne({
+  async findAll() {
+    return this.prisma.complaint.findMany({
+      include: {
+        profile: true,
+        pedido: true,
+        defectiveProducts: { include: { producto: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async findOne(id: number) {
+    const complaint = await this.prisma.complaint.findUnique({
       where: { id },
-      relations: [
-        'profile',
-        'pedido',
-        'defectiveProducts',
-        'defectiveProducts.producto',
-      ],
+      include: {
+        profile: true,
+        pedido: true,
+        defectiveProducts: { include: { producto: true } },
+      },
     });
     if (!complaint) {
       throw new NotFoundException(`Complaint #${id} not found`);
@@ -83,8 +65,8 @@ export class ComplaintsService {
     return complaint;
   }
 
-  async search(filters: SearchFilters): Promise<Complaint[]> {
-    const where: Record<string, unknown> = {};
+  async search(filters: SearchFilters) {
+    const where: any = {};
 
     if (filters.status) {
       where.status = filters.status;
@@ -96,131 +78,125 @@ export class ComplaintsService {
       where.priority = filters.priority;
     }
     if (filters.startDate && filters.endDate) {
-      where.createdAt = Between(
-        new Date(filters.startDate),
-        new Date(filters.endDate),
-      );
+      where.createdAt = {
+        gte: new Date(filters.startDate),
+        lte: new Date(filters.endDate),
+      };
     } else if (filters.startDate) {
-      where.createdAt = MoreThanOrEqual(new Date(filters.startDate));
+      where.createdAt = { gte: new Date(filters.startDate) };
     } else if (filters.endDate) {
-      where.createdAt = LessThanOrEqual(new Date(filters.endDate));
+      where.createdAt = { lte: new Date(filters.endDate) };
     }
 
-    return await this.complaintsRepository.find({
+    return this.prisma.complaint.findMany({
       where,
-      relations: [
-        'profile',
-        'pedido',
-        'defectiveProducts',
-        'defectiveProducts.producto',
-      ],
-      order: { createdAt: 'DESC' },
+      include: {
+        profile: true,
+        pedido: true,
+        defectiveProducts: { include: { producto: true } },
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findByProfile(profileId: number): Promise<Complaint[]> {
-    return await this.complaintsRepository.find({
-      where: { profile: { id: profileId } },
-      relations: [
-        'profile',
-        'pedido',
-        'defectiveProducts',
-        'defectiveProducts.producto',
-      ],
-      order: { createdAt: 'DESC' },
+  async findByProfile(profileId: number) {
+    return this.prisma.complaint.findMany({
+      where: { profile_id: profileId },
+      include: {
+        profile: true,
+        pedido: true,
+        defectiveProducts: { include: { producto: true } },
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findByOrder(orderId: number): Promise<Complaint[]> {
-    return await this.complaintsRepository.find({
-      where: { pedido: { id: orderId } },
-      relations: [
-        'profile',
-        'pedido',
-        'defectiveProducts',
-        'defectiveProducts.producto',
-      ],
-      order: { createdAt: 'DESC' },
+  async findByOrder(orderId: number) {
+    return this.prisma.complaint.findMany({
+      where: { order_id: orderId },
+      include: {
+        profile: true,
+        pedido: true,
+        defectiveProducts: { include: { producto: true } },
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findByStatus(status: ComplaintStatus): Promise<Complaint[]> {
-    return await this.complaintsRepository.find({
+  async findByStatus(status: ComplaintStatus) {
+    return this.prisma.complaint.findMany({
       where: { status },
-      relations: [
-        'profile',
-        'pedido',
-        'defectiveProducts',
-        'defectiveProducts.producto',
-      ],
-      order: { createdAt: 'DESC' },
+      include: {
+        profile: true,
+        pedido: true,
+        defectiveProducts: { include: { producto: true } },
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findByType(type: ComplaintType): Promise<Complaint[]> {
-    return await this.complaintsRepository.find({
+  async findByType(type: ComplaintType) {
+    return this.prisma.complaint.findMany({
       where: { type },
-      relations: [
-        'profile',
-        'pedido',
-        'defectiveProducts',
-        'defectiveProducts.producto',
-      ],
-      order: { createdAt: 'DESC' },
+      include: {
+        profile: true,
+        pedido: true,
+        defectiveProducts: { include: { producto: true } },
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
-  async findByPriority(priority: ComplaintPriority): Promise<Complaint[]> {
-    return await this.complaintsRepository.find({
+  async findByPriority(priority: ComplaintPriority) {
+    return this.prisma.complaint.findMany({
       where: { priority },
-      relations: [
-        'profile',
-        'pedido',
-        'defectiveProducts',
-        'defectiveProducts.producto',
-      ],
-      order: { createdAt: 'DESC' },
+      include: {
+        profile: true,
+        pedido: true,
+        defectiveProducts: { include: { producto: true } },
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
   async getStats() {
-    const total = await this.complaintsRepository.count();
-    const pending = await this.complaintsRepository.count({
+    const total = await this.prisma.complaint.count();
+    const pending = await this.prisma.complaint.count({
       where: { status: ComplaintStatus.PENDING },
     });
-    const inReview = await this.complaintsRepository.count({
+    const inReview = await this.prisma.complaint.count({
       where: { status: ComplaintStatus.IN_REVIEW },
     });
-    const resolved = await this.complaintsRepository.count({
+    const resolved = await this.prisma.complaint.count({
       where: { status: ComplaintStatus.RESOLVED },
     });
-    const rejected = await this.complaintsRepository.count({
+    const rejected = await this.prisma.complaint.count({
       where: { status: ComplaintStatus.REJECTED },
     });
 
     const byType = {
-      product_issue: await this.complaintsRepository.count({
+      product_issue: await this.prisma.complaint.count({
         where: { type: ComplaintType.PRODUCT_ISSUE },
       }),
-      service_issue: await this.complaintsRepository.count({
+      service_issue: await this.prisma.complaint.count({
         where: { type: ComplaintType.SERVICE_ISSUE },
       }),
-      delivery_issue: await this.complaintsRepository.count({
+      delivery_issue: await this.prisma.complaint.count({
         where: { type: ComplaintType.DELIVERY_ISSUE },
       }),
-      other: await this.complaintsRepository.count({
+      other: await this.prisma.complaint.count({
         where: { type: ComplaintType.OTHER },
       }),
     };
 
     const byPriority = {
-      high: await this.complaintsRepository.count({
+      high: await this.prisma.complaint.count({
         where: { priority: ComplaintPriority.HIGH },
       }),
-      medium: await this.complaintsRepository.count({
+      medium: await this.prisma.complaint.count({
         where: { priority: ComplaintPriority.MEDIUM },
       }),
-      low: await this.complaintsRepository.count({
+      low: await this.prisma.complaint.count({
         where: { priority: ComplaintPriority.LOW },
       }),
     };
@@ -233,35 +209,42 @@ export class ComplaintsService {
     };
   }
 
-  async update(
-    id: number,
-    updateComplaintDto: UpdateComplaintDto,
-  ): Promise<Complaint> {
-    const complaint = await this.findOne(id);
+  async update(id: number, updateComplaintDto: UpdateComplaintDto) {
     const { defectiveProductIds, ...rest } = updateComplaintDto;
 
-    if (defectiveProductIds && defectiveProductIds.length > 0) {
-      complaint.defectiveProducts = await this.pedidoProductoRepository.find({
-        where: { id: In(defectiveProductIds) },
-      });
-    }
+    const complaint = await this.prisma.complaint.findUnique({ where: { id } });
+    if (!complaint) throw new NotFoundException(`Complaint #${id} not found`);
 
-    Object.assign(complaint, rest);
-    return await this.complaintsRepository.save(complaint);
+    return this.prisma.complaint.update({
+      where: { id },
+      data: {
+        ...rest,
+        defectiveProducts:
+          defectiveProductIds && defectiveProductIds.length > 0
+            ? {
+                set: defectiveProductIds.map((id) => ({ id })),
+              }
+            : undefined,
+      },
+    });
   }
 
-  async resolve(
-    id: number,
-    updateComplaintDto: UpdateComplaintDto,
-  ): Promise<Complaint> {
-    const complaint = await this.findOne(id);
-    complaint.status = ComplaintStatus.RESOLVED;
-    Object.assign(complaint, updateComplaintDto);
-    return await this.complaintsRepository.save(complaint);
+  async resolve(id: number, updateComplaintDto: UpdateComplaintDto) {
+    const complaint = await this.prisma.complaint.findUnique({ where: { id } });
+    if (!complaint) throw new NotFoundException(`Complaint #${id} not found`);
+
+    return this.prisma.complaint.update({
+      where: { id },
+      data: {
+        status: ComplaintStatus.RESOLVED,
+        ...updateComplaintDto,
+      },
+    });
   }
 
-  async remove(id: number): Promise<void> {
-    const complaint = await this.findOne(id);
-    await this.complaintsRepository.remove(complaint);
+  async remove(id: number) {
+    const complaint = await this.prisma.complaint.findUnique({ where: { id } });
+    if (!complaint) throw new NotFoundException(`Complaint #${id} not found`);
+    await this.prisma.complaint.delete({ where: { id } });
   }
 }

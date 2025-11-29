@@ -1,47 +1,54 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
-import { Envio, EstadoEnvio } from './entities/envios.entity';
-import { GuiaTypeormEntity } from '../guias_trazabilidad/infrastructure/persistence/typeorm-entities/guia.typeorm-entity';
-import { Unidad } from '../unidades/entities/unidad.entity';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateEnvioDto } from './dto/CrearEnvioDto.dto';
+
+export enum EstadoEnvio {
+  PENDIENTE = 'pendiente',
+  EN_RUTA = 'en_ruta',
+  ENTREGADO = 'entregado',
+  FALLIDO = 'fallido',
+  REPROGRAMADO = 'reprogramado',
+  RETIRAR_SUCURSAL = 'retirar_sucursal',
+}
 
 @Injectable()
 export class EnviosService {
-  constructor(
-    @InjectRepository(Envio)
-    private readonly envioRepository: Repository<Envio>,
+  constructor(private prisma: PrismaService) {}
 
-    @InjectRepository(GuiaTypeormEntity)
-    private readonly guiaRepo: Repository<GuiaTypeormEntity>,
-
-    @InjectRepository(Unidad)
-    private readonly unidadRepo: Repository<Unidad>,
-  ) {}
-
-  async findAll(): Promise<Envio[]> {
-    return this.envioRepository.find({ relations: ['guia', 'unidad'] });
-  }
-
-  async findByUnidad(id: number): Promise<Envio[]> {
-    return this.envioRepository.find({
-      where: { unidad: { id } },
-      relations: ['guia', 'unidad'],
+  async findAll() {
+    return this.prisma.envio.findMany({
+      include: { guia: true, unidad: true },
     });
   }
 
-  async findByGuia(id: string): Promise<Envio[]> {
-    return this.envioRepository.find({
-      where: { guia: { id_guia: id } },
-      relations: ['guia', 'unidad'],
+  async findByUnidad(id: number) {
+    return this.prisma.envio.findMany({
+      where: { id_unidad: id },
+      include: { guia: true, unidad: true },
     });
   }
 
-  async create(dto: CreateEnvioDto): Promise<Envio> {
-    const guia = await this.guiaRepo.findOne({ where: { id_guia: dto.guiaId }, relations: ['destinatario'] });
+  async findByGuia(id: string) {
+    return this.prisma.envio.findMany({
+      where: { id_guia: id },
+      include: { guia: true, unidad: true },
+    });
+  }
+
+  async create(dto: CreateEnvioDto) {
+    const guia = await this.prisma.guia.findUnique({
+      where: { id_guia: dto.guiaId },
+      include: { destinatario: true },
+    });
     if (!guia) throw new NotFoundException('Guía no encontrada');
 
-    const unidad = await this.unidadRepo.findOne({ where: { id: dto.unidadId } });
+    const unidad = await this.prisma.unidad.findUnique({
+      where: { id: dto.unidadId },
+    });
     if (!unidad) throw new NotFoundException('Unidad no encontrada');
 
     const fechaAsignacion = new Date();
@@ -49,81 +56,89 @@ export class EnviosService {
     horaLimite.setHours(15, 0, 0, 0);
 
     const fechaEntrega = new Date(fechaAsignacion);
-    if (fechaAsignacion > horaLimite) fechaEntrega.setDate(fechaEntrega.getDate() + 1);
-
+    if (fechaAsignacion > horaLimite)
+      fechaEntrega.setDate(fechaEntrega.getDate() + 1);
     
-    const envioExistente = await this.envioRepository.findOne({
+    fechaEntrega.setHours(0, 0, 0, 0);
+
+    const envioExistente = await this.prisma.envio.findFirst({
       where: {
-        guia: { id_guia: dto.guiaId },
+        id_guia: dto.guiaId,
         fecha_entrega_programada: fechaEntrega,
       },
     });
 
     if (envioExistente) {
       throw new BadRequestException(
-        `Ya existe un envío programado para la guía ${dto.guiaId} en la fecha ${fechaEntrega.toISOString().slice(0, 10)}.`
+        `Ya existe un envío programado para la guía ${dto.guiaId} en la fecha ${fechaEntrega.toISOString().slice(0, 10)}.`,
       );
     }
 
-    const nombres = guia.destinatario?.nombres ?? '';
-    const apellidos = guia.destinatario?.apellidos ?? '';
-    const nombreCompleto = `${nombres} ${apellidos}`.trim();
-
-    const envio = this.envioRepository.create({
-      guia,
-      unidad,
-      estado_envio: EstadoEnvio.PENDIENTE,
-      fecha_asignacion: fechaAsignacion,
-      fecha_entrega_programada: fechaEntrega,
+    return this.prisma.envio.create({
+      data: {
+        id_guia: guia.id_guia,
+        id_unidad: unidad.id,
+        estado_envio: EstadoEnvio.PENDIENTE,
+        fecha_asignacion: fechaAsignacion,
+        fecha_entrega_programada: fechaEntrega,
+      },
     });
-
-    return this.envioRepository.save(envio);
   }
 
-  async findEnviosDeHoyPorUnidad(unidadId: string): Promise<any[]> {
+  async findEnviosDeHoyPorUnidad(unidadId: string) {
     const inicioDelDia = new Date();
     inicioDelDia.setHours(0, 0, 0, 0);
 
     const finDelDia = new Date();
     finDelDia.setHours(23, 59, 59, 999);
 
-    const queryBuilder = this.envioRepository.createQueryBuilder('envio')
-      .leftJoin('envio.guia', 'guia')
-      .leftJoin('contactos_guias', 'contactoGuia', 'contactoGuia.id_contacto = guia.id_destinatario')
-      .select([
-        'envio.id AS id',
-        'envio.estado_envio AS estado_envio',
-        'guia.numero_de_rastreo AS numero_de_rastreo',
-        'contactoGuia.calle AS calle',
-        'contactoGuia.numero AS numero',
-        'contactoGuia.numero_interior AS numero_interior',
-        'contactoGuia.asentamiento AS asentamiento',
-        'contactoGuia.codigo_postal AS codigo_postal',
-        'contactoGuia.localidad AS localidad',
-        'contactoGuia.estado AS estado',
-        'contactoGuia.pais AS pais',
-        'contactoGuia.lat AS lat',
-        'contactoGuia.lng AS lng',
-        'contactoGuia.referencia AS referencia',
-        "CONCAT(contactoGuia.nombres, ' ', contactoGuia.apellidos) AS destinatario",
-      ])
-      .where('envio.id_unidad = :unidadId', { unidadId })
-      .andWhere('envio.fecha_entrega_programada BETWEEN :inicioDelDia AND :finDelDia', {
-        inicioDelDia,
-        finDelDia,
-      })
-      .orderBy('envio.fecha_entrega_programada', 'ASC');
+    const envios = await this.prisma.envio.findMany({
+      where: {
+        id_unidad: Number(unidadId),
+        fecha_entrega_programada: {
+          gte: inicioDelDia,
+          lte: finDelDia,
+        },
+      },
+      include: {
+        guia: {
+          include: {
+            destinatario: true,
+          },
+        },
+      },
+      orderBy: { fecha_entrega_programada: 'asc' },
+    });
 
-    const resultados = await queryBuilder.getRawMany();
-
-    if (!resultados || resultados.length === 0) {
-      throw new NotFoundException(`No se encontraron envíos para la unidad ${unidadId} en el día de hoy.`);
+    if (!envios || envios.length === 0) {
+      throw new NotFoundException(
+        `No se encontraron envíos para la unidad ${unidadId} en el día de hoy.`,
+      );
     }
 
-    return resultados;
+    return envios.map((envio) => {
+      const contacto = envio.guia.destinatario;
+      return {
+        id: envio.id,
+        estado_envio: envio.estado_envio,
+        numero_de_rastreo: envio.guia.numero_de_rastreo,
+        calle: contacto?.calle,
+        numero: contacto?.numero,
+        numero_interior: contacto?.numero_interior,
+        asentamiento: contacto?.asentamiento,
+        codigo_postal: contacto?.codigo_postal,
+        localidad: contacto?.localidad,
+        estado: contacto?.estado,
+        pais: contacto?.pais,
+        lat: contacto?.lat,
+        lng: contacto?.lng,
+        referencia: contacto?.referencia,
+        destinatario: contacto ? `${contacto.nombres} ${contacto.apellidos}` : null,
+      };
+    });
   }
 
-  async iniciarRuta(unidadId: number): Promise<{ updated: number }> {
+  async iniciarRuta(unidadId: number) {
     const hoy = new Date();
     const inicioDelDia = new Date(hoy);
     inicioDelDia.setHours(0, 0, 0, 0);
@@ -131,136 +146,144 @@ export class EnviosService {
     const finDelDia = new Date(hoy);
     finDelDia.setHours(23, 59, 59, 999);
 
-    const result = await this.envioRepository.update(
-      {
-        unidad: { id: unidadId },
-        fecha_entrega_programada: Between(inicioDelDia, finDelDia),
+    const result = await this.prisma.envio.updateMany({
+      where: {
+        id_unidad: unidadId,
+        fecha_entrega_programada: {
+          gte: inicioDelDia,
+          lte: finDelDia,
+        },
         estado_envio: EstadoEnvio.PENDIENTE,
       },
-      {
+      data: {
         estado_envio: EstadoEnvio.EN_RUTA,
       },
-    );
-    if (!result.affected) {
-      throw new NotFoundException(`No se encontraron envíos pendientes para la unidad ${unidadId} para el día de hoy.`);
+    });
+
+    if (result.count === 0) {
+      throw new NotFoundException(
+        `No se encontraron envíos pendientes para la unidad ${unidadId} para el día de hoy.`,
+      );
     }
 
-    return { updated: result.affected };
+    return { updated: result.count };
   }
 
-  async marcarComoFallido(id: number, motivo: string): Promise<Envio> {
-    const envio = await this.envioRepository.findOne({
+  async marcarComoFallido(id: number, motivo: string) {
+    const envio = await this.prisma.envio.findUnique({
       where: { id },
-      relations: ['guia', 'unidad'],
+      include: { guia: true, unidad: true },
     });
 
     if (!envio) {
       throw new NotFoundException(`No se encontró un envío con el ID ${id}`);
     }
 
-    envio.estado_envio = EstadoEnvio.FALLIDO;
-    envio.motivo_fallo = motivo;
-    envio.fecha_fallido = new Date();
-    await this.envioRepository.save(envio);
+    await this.prisma.envio.update({
+      where: { id },
+      data: {
+        estado_envio: EstadoEnvio.FALLIDO,
+        motivo_fallo: motivo,
+        fecha_fallido: new Date(),
+      },
+    });
 
-    // Calcular fecha siguiente
     const nuevaFechaEntrega = new Date();
     nuevaFechaEntrega.setDate(nuevaFechaEntrega.getDate() + 1);
-    nuevaFechaEntrega.setHours(0, 0, 0, 0); // normalizar a medianoche
+    nuevaFechaEntrega.setHours(0, 0, 0, 0);
 
-    // Contar intentos fallidos previos
-    const intentosFallidos = await this.envioRepository.count({
+    const intentosFallidos = await this.prisma.envio.count({
       where: {
-        guia: { id_guia: envio.guia.id_guia },
-        unidad: { id: envio.unidad?.id },
+        id_guia: envio.id_guia,
+        id_unidad: envio.id_unidad,
         estado_envio: EstadoEnvio.FALLIDO,
       },
     });
 
-    // Si ya falló 3 veces, marcar como RETIRAR_SUCURSAL (no se crea más intentos)
     if (intentosFallidos >= 3) {
-      console.warn(`Guía ${envio.guia.id_guia} ha fallado 3 veces. Cambiando a RETIRAR_SUCURSAL.`);
+      console.warn(
+        `Guía ${envio.id_guia} ha fallado 3 veces. Cambiando a RETIRAR_SUCURSAL.`,
+      );
 
-      const retiro = this.envioRepository.create({
-        guia: envio.guia,
-        unidad: envio.unidad,
-        estado_envio: EstadoEnvio.RETIRAR_SUCURSAL,
-        fecha_asignacion: new Date(),
-        fecha_entrega_programada: nuevaFechaEntrega, // puede mantenerse como hoy
+      await this.prisma.envio.create({
+        data: {
+          id_guia: envio.id_guia,
+          id_unidad: envio.id_unidad,
+          estado_envio: EstadoEnvio.RETIRAR_SUCURSAL,
+          fecha_asignacion: new Date(),
+          fecha_entrega_programada: nuevaFechaEntrega,
+        },
       });
-
-      await this.envioRepository.save(retiro);
       return envio;
     }
 
-    // Verificar si ya existe un reintento para esa guía en esa fecha
-    const yaExiste = await this.envioRepository.findOne({
+    const yaExiste = await this.prisma.envio.findFirst({
       where: {
-        guia: { id_guia: envio.guia.id_guia },
-        unidad: { id: envio.unidad?.id },
+        id_guia: envio.id_guia,
+        id_unidad: envio.id_unidad,
         fecha_entrega_programada: nuevaFechaEntrega,
       },
     });
 
     if (yaExiste) {
       console.warn(
-        `Ya existe un reintento para la guía ${envio.guia.id_guia} en la fecha ${nuevaFechaEntrega.toISOString()}`
+        `Ya existe un reintento para la guía ${envio.id_guia} en la fecha ${nuevaFechaEntrega.toISOString()}`,
       );
       return envio;
     }
 
-    // Crear nuevo envío con fecha de entrega reprogramada
-    const nuevoEnvio = this.envioRepository.create({
-      guia: envio.guia,
-      unidad: envio.unidad,
-      estado_envio: EstadoEnvio.PENDIENTE,
-      fecha_asignacion: new Date(),
-      fecha_entrega_programada: nuevaFechaEntrega,
+    await this.prisma.envio.create({
+      data: {
+        id_guia: envio.id_guia,
+        id_unidad: envio.id_unidad,
+        estado_envio: EstadoEnvio.PENDIENTE,
+        fecha_asignacion: new Date(),
+        fecha_entrega_programada: nuevaFechaEntrega,
+      },
     });
 
-    await this.envioRepository.save(nuevoEnvio);
-
     return envio;
-
   }
 
-  async actualizarEstatus(id: number, nuevoEstatus: string, nombreReceptor: string): Promise<Envio | null> {
-    const envio = await this.envioRepository.findOne({ where: { id } });
+  async actualizarEstatus(
+    id: number,
+    nuevoEstatus: string,
+    nombreReceptor: string,
+  ) {
+    const envio = await this.prisma.envio.findUnique({ where: { id } });
 
     if (!envio) {
       return null;
     }
 
-    if (!Object.values(EstadoEnvio).includes(nuevoEstatus as EstadoEnvio)) {
-      throw new Error(`Estado inválido: ${nuevoEstatus}`);
-    }
-
-    envio.estado_envio = nuevoEstatus as EstadoEnvio;
-
+    const data: any = { estado_envio: nuevoEstatus };
     const today = new Date();
+
     if (nuevoEstatus === EstadoEnvio.ENTREGADO) {
-      envio.fecha_entregado = today;
+      data.fecha_entregado = today;
       if (nombreReceptor) {
-        envio.nombre_receptor = nombreReceptor;
+        data.nombre_receptor = nombreReceptor;
       }
     } else if (nuevoEstatus === EstadoEnvio.FALLIDO) {
-      envio.fecha_fallido = today;
+      data.fecha_fallido = today;
     }
 
-
-    return await this.envioRepository.save(envio);
+    return await this.prisma.envio.update({
+      where: { id },
+      data,
+    });
   }
 
-  async anadirEvidencia(id: number, url: string): Promise<Envio | null> {
-    const envio = await this.envioRepository.findOne({ where: { id } });
+  async anadirEvidencia(id: number, url: string) {
+    const envio = await this.prisma.envio.findUnique({ where: { id } });
 
     if (!envio) {
       return null;
     }
 
-    envio.evidencia_entrega = url;
-    return await this.envioRepository.save(envio);
-
+    return await this.prisma.envio.update({
+      where: { id },
+      data: { evidencia_entrega: url },
+    });
   }
-  
 }

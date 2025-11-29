@@ -7,7 +7,6 @@ import {
   OneToMany,
 } from 'typeorm';
 import { ContactosTypeormEntity } from './contactos.typeorm-entity';
-import { Envio } from '../../../../envios/entities/envios.entity';
 
 @Entity({ name: 'guias' })
 export class GuiaTypeormEntity {
@@ -60,7 +59,4 @@ export class GuiaTypeormEntity {
 
   @Column({ type: 'varchar', nullable: true })
   key_pdf: string | null;
-
-  @OneToMany(() => Envio, (envio) => envio.guia)
-  envios: Envio[];
 }

@@ -5,20 +5,20 @@ export class HistorialAsignacion {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'nombre_conductor', length: 255 })
+  @Column({ name: 'nombre_conductor', type: 'varchar', length: 255 })
   nombreConductor: string;
 
-  @Column({ length: 18 })
+  @Column({ type: 'varchar', length: 18 })
   curp: string;
 
-  @Column({ name: 'placas_unidad', length: 20 })
+  @Column({ name: 'placas_unidad', type: 'varchar', length: 20 })
   placasUnidad: string;
 
-  @Column({ name: 'oficina_salida', length: 5 })
+  @Column({ name: 'oficina_salida', type: 'varchar', length: 5 })
   claveOficinaSalida: string;
 
-  @Column({ name: 'clave_cuo_destino', length: 10 })
-  claveOficinaDestino: string;
+  @Column({ name: 'clave_cuo_destino', type: 'varchar', length: 10, nullable: true })
+  claveOficinaDestino: string | null;
 
   @Column({
     name: 'clave_oficina_actual',

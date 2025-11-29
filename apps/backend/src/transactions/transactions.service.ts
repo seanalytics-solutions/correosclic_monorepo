@@ -1,96 +1,85 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Transaction, TransactionContents } from './entities/transaction.entity';
-import { Product } from '../products/entities/product.entity';
-import { Profile } from '../profile/entities/profile.entity';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 
 @Injectable()
 export class TransactionsService {
-  constructor(
-    @InjectRepository(Transaction)
-    private readonly transactionRepository: Repository<Transaction>,
-    @InjectRepository(TransactionContents)
-    private readonly transactionContentsRepository: Repository<TransactionContents>,
-    @InjectRepository(Product)
-    private readonly productRepository: Repository<Product>,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async create(createTransactionDto: CreateTransactionDto) {
-    await this.productRepository.manager.transaction(
-      async (transactionEntityManager) => {
-        const transaction = new Transaction();
-        const profile = await transactionEntityManager.findOne(Profile, {
-          where: { id: createTransactionDto.profileId },
+    return this.prisma.$transaction(async (tx) => {
+      const profile = await tx.profile.findUnique({
+        where: { id: createTransactionDto.profileId },
+      });
+      if (!profile) {
+        throw new NotFoundException(
+          `El perfil con el ID: ${createTransactionDto.profileId} no existe`,
+        );
+      }
+
+      const total = createTransactionDto.contenidos.reduce(
+        (sum, item) => sum + item.cantidad * item.precio,
+        0,
+      );
+
+      const transaction = await tx.transaction.create({
+        data: {
+          profileId: createTransactionDto.profileId,
+          total: total,
+        },
+      });
+
+      for (const contentItem of createTransactionDto.contenidos) {
+        const product = await tx.product.findUnique({
+          where: { id: contentItem.productId },
         });
-        if (!profile) {
+        if (!product) {
           throw new NotFoundException(
-            `El perfil con el ID: ${createTransactionDto.profileId} no existe`,
+            `El producto con el ID: ${contentItem.productId} no existe`,
           );
         }
-        transaction.profile = profile;
+        // Original code saved product but didn't modify it. Skipping save.
 
-        const total = createTransactionDto.contenidos.reduce(
-          (sum, item) => sum + item.cantidad * item.precio,
-          0,
-        );
-        transaction.total = total;
+        await tx.transactionContent.create({
+          data: {
+            precio: contentItem.precio,
+            cantidad: contentItem.cantidad,
+            productoId: contentItem.productId,
+            transactionId: transaction.id,
+          },
+        });
+      }
 
-        await transactionEntityManager.save(transaction);
-
-        for (const contentItem of createTransactionDto.contenidos) {
-          const product = await transactionEntityManager.findOneBy(Product, {
-            id: contentItem.productId,
-          });
-          if (!product) {
-            throw new NotFoundException(
-              `El producto con el ID: ${contentItem.productId} no existe`,
-            );
-          }
-          await transactionEntityManager.save(product);
-
-          const transactionContent = new TransactionContents();
-          transactionContent.precio = contentItem.precio;
-          transactionContent.cantidad = contentItem.cantidad;
-          transactionContent.producto = product;
-          transactionContent.transaction = transaction;
-          await transactionEntityManager.save(transactionContent);
-        }
-      },
-    );
-
-    return { message: 'Venta almacenada correctamente' };
+      return { message: 'Venta almacenada correctamente' };
+    });
   }
 
   // Devuelve todas las transacciones (con detalles)
   async findAll() {
-    return this.transactionRepository.find({
-      relations: ['contenidos', 'contenidos.producto'],
-      order: { diaTransaccion: 'DESC' },
+    return this.prisma.transaction.findMany({
+      include: { contenidos: { include: { producto: true } } },
+      orderBy: { diaTransaccion: 'desc' },
     });
   }
 
   // Nuevo método para todas las compras de un usuario
   async findByProfile(profileId: number) {
-    return this.transactionRepository.find({
+    return this.prisma.transaction.findMany({
       where: { profileId },
-      relations: ['contenidos', 'contenidos.producto'],
-      order: { diaTransaccion: 'DESC' },
+      include: { contenidos: { include: { producto: true } } },
+      orderBy: { diaTransaccion: 'desc' },
     });
   }
 
   // Obtener una única transacción por su ID
   async findOne(id: number) {
-    const transaction = await this.transactionRepository.findOne({
+    const transaction = await this.prisma.transaction.findUnique({
       where: { id },
-      relations: ['contenidos', 'contenidos.producto'],
+      include: { contenidos: { include: { producto: true } } },
     });
     if (!transaction) {
-      throw new NotFoundException(
-        `Transacción con ID: ${id} no encontrada`,
-      );
+      throw new NotFoundException(`Transacción con ID: ${id} no encontrada`);
     }
     return transaction;
   }
@@ -102,4 +91,4 @@ export class TransactionsService {
   remove(id: number) {
     return `This action removes a #${id} transaction`;
   }
-} 
+}

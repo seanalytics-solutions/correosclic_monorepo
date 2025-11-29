@@ -45,6 +45,7 @@ import { ReviewModule } from './review/review.module';
 import { PDFGeneratorModule } from './guias_trazabilidad/infrastructure/pdf-generator/pdf-generator.module';
 import { CouponModule } from './coupons/coupons.module';
 import { ComplaintsModule } from './complaints/complaints.module';
+import { PrismaModule } from './prisma/prisma.module';
 import { CreateSellerModule } from './create_seller/create-seller.module';
 
 @Module({
@@ -57,6 +58,7 @@ import { CreateSellerModule } from './create_seller/create-seller.module';
       useFactory: typeOrmConfig,
       inject: [ConfigService],
     }),
+    PrismaModule,
     CreateAccountModule,
     RoutesModule,
     ProfileModule,

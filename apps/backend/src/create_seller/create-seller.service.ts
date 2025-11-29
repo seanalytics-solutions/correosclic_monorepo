@@ -1,24 +1,22 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { CreateSellerEntity } from './entities/create_seller.entity';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateSellerDto } from './dto/create-seller.dto';
 
 @Injectable()
 export class CreateSellerService {
-  constructor(
-    @InjectRepository(CreateSellerEntity)
-    private CreateSellerEntity: Repository<CreateSellerEntity>,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async findAll(page: number = 1, limit: number = 10) {
     const skip = (page - 1) * limit;
 
-    const [data, total] = await this.CreateSellerEntity.findAndCount({
-      order: { id: 'DESC' },
-      skip,
-      take: limit,
-    });
+    const [data, total] = await Promise.all([
+      this.prisma.createSeller.findMany({
+        orderBy: { id: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.createSeller.count(),
+    ]);
 
     return {
       data,
@@ -32,7 +30,7 @@ export class CreateSellerService {
   }
 
   async findOne(id: number) {
-    const seller = await this.CreateSellerEntity.findOne({ where: { id } });
+    const seller = await this.prisma.createSeller.findUnique({ where: { id } });
 
     if (!seller) {
       throw new NotFoundException('seller not found');
@@ -42,19 +40,21 @@ export class CreateSellerService {
   }
 
   async update(id: number, dto: CreateSellerDto) {
-    const seller = await this.findOne(id);
-    Object.assign(seller, dto);
-    await this.CreateSellerEntity.save(seller);
+    await this.findOne(id);
+    await this.prisma.createSeller.update({
+      where: { id },
+      data: dto,
+    });
     return { ok: true, message: 'Seller Updated' };
   }
 
   async remove(id: number) {
-    const seller = await this.findOne(id);
-    await this.CreateSellerEntity.remove(seller);
+    await this.findOne(id);
+    await this.prisma.createSeller.delete({ where: { id } });
     return { message: 'Seller has been deleted' };
   }
 
-  async save(seller: CreateSellerDto): Promise<CreateSellerDto> {
-    return this.CreateSellerEntity.save(seller);
+  async save(seller: CreateSellerDto) {
+    return this.prisma.createSeller.create({ data: seller });
   }
 }

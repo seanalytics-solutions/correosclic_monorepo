@@ -1,68 +1,76 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateMisdireccioneDto } from './dto/create-misdireccione.dto';
 import { UpdateMisdireccioneDto } from './dto/update-misdireccione.dto';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Misdireccione } from './entities/misdireccione.entity';
-import { Profile } from '../profile/entities/profile.entity';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class MisdireccionesService {
-  connection: any;
-   constructor(
-    @InjectRepository(Misdireccione)
-    private readonly misdireccionesRepository: Repository<Misdireccione>,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
-async obtenerPorUsuario(usuarioId: number): Promise<Misdireccione[]> {
-  return this.misdireccionesRepository.find({
-    where: { usuario: { id: usuarioId } },
-    relations: ['usuario'],
-  });
-}
-
-async findOne(id: number): Promise<Misdireccione> {
-  const direccion = await this.misdireccionesRepository.findOne({ where: { id } });
-
-  if (!direccion) {
-    throw new NotFoundException(`Dirección con id ${id} no encontrada`);
+  async obtenerPorUsuario(usuarioId: number) {
+    return this.prisma.misdireccione.findMany({
+      where: { usuarioId: usuarioId },
+      include: { usuario: true },
+    });
   }
 
-  return direccion;
-}
+  async findOne(id: number) {
+    const direccion = await this.prisma.misdireccione.findUnique({
+      where: { id },
+    });
 
-async create(createDto: CreateMisdireccioneDto): Promise<Misdireccione> {
-  const direccion = this.misdireccionesRepository.create({
-    ...createDto,
-    usuario: { id: createDto.usuarioId }, 
-  });
+    if (!direccion) {
+      throw new NotFoundException(`Dirección con id ${id} no encontrada`);
+    }
 
-  return this.misdireccionesRepository.save(direccion);
-}
+    return direccion;
+  }
 
-
+  async create(createDto: CreateMisdireccioneDto) {
+    return this.prisma.misdireccione.create({
+      data: {
+        nombre: createDto.nombre,
+        calle: createDto.calle,
+        colonia_fraccionamiento: createDto.colonia_fraccionamiento,
+        numero_interior: createDto.numero_interior,
+        numero_exterior: createDto.numero_exterior,
+        numero_celular: createDto.numero_celular,
+        codigo_postal: createDto.codigo_postal,
+        estado: createDto.estado,
+        municipio: createDto.municipio,
+        mas_info: createDto.mas_info,
+        usuario: { connect: { id: createDto.usuarioId } },
+      },
+    });
+  }
 
   findAll() {
     return `This action returns all misdirecciones`;
   }
 
+  async update(id: number, dto: UpdateMisdireccioneDto) {
+    const direccion = await this.prisma.misdireccione.findUnique({
+      where: { id },
+    });
+    if (!direccion) {
+      throw new NotFoundException(`Dirección con id ${id} no encontrada`);
+    }
 
-  async update(id: number, dto: UpdateMisdireccioneDto): Promise<Misdireccione> {
-  const direccion = await this.misdireccionesRepository.findOne({ where: { id } });
-  if (!direccion) {
-    throw new NotFoundException(`Dirección con id ${id} no encontrada`);
+    return this.prisma.misdireccione.update({
+      where: { id },
+      data: dto,
+    });
   }
 
-  Object.assign(direccion, dto);
-  return this.misdireccionesRepository.save(direccion);
-}
-
-  async remove(id: number): Promise<void> {
-  const direccion = await this.misdireccionesRepository.findOne({ where: { id } });
-  if (!direccion) {
-    throw new NotFoundException(`Dirección con id ${id} no encontrada`);
+  async remove(id: number) {
+    const direccion = await this.prisma.misdireccione.findUnique({
+      where: { id },
+    });
+    if (!direccion) {
+      throw new NotFoundException(`Dirección con id ${id} no encontrada`);
+    }
+    await this.prisma.misdireccione.delete({
+      where: { id },
+    });
   }
-  await this.misdireccionesRepository.remove(direccion);
-}
-
 }

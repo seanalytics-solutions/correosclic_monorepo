@@ -8,14 +8,10 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Transaction } from '../../transactions/entities/transaction.entity';
-import { Favorito } from '../../favoritos/entities/favorito.entity';
 import { Factura } from '../../facturas/factura.entity';
-import { Carrito } from '../../carrito/entities/carrito.entity';
-import { Misdireccione } from '../../misdirecciones/entities/misdireccione.entity';
-import { CreateAccount } from '../../create-account/entities/create-account.entity';
 import { Card } from '../../cards/entities/card.entity';
 import { Review } from '../../review/entities/review.entity';
-import { Complaint } from '../../complaints/entities/complaint.entity';
+
 @Entity()
 export class Profile {
   @ApiProperty({ example: 7 })
@@ -70,23 +66,6 @@ export class Profile {
 
   @OneToMany(() => Transaction, (tx) => tx.profile)
   transactions: Transaction[];
-
-  @OneToMany(() => Favorito, (favorito) => favorito.usuario)
-  favoritos: Favorito[];
-
-  @OneToMany(() => Complaint, (complaint) => complaint.profile)
-  complaints: Complaint[];
-
-  @OneToMany(() => Carrito, (carrito) => carrito.usuario)
-  carrito: Carrito[];
-
-  @OneToMany(() => Misdireccione, (direccion) => direccion.usuario, {
-    cascade: true,
-  })
-  direcciones: Misdireccione[];
-
-  @OneToOne(() => CreateAccount, (user) => user.profile)
-  usuario: CreateAccount;
 
   @OneToMany(() => Card, (card) => card.profile)
   cards: Card[];

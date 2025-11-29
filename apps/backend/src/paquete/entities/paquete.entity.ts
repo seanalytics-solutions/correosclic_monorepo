@@ -27,7 +27,7 @@ export class Paquete {
   cp: string;
 
   @Column({ type: 'varchar', nullable: true })
-  indicaciones?: string;
+  indicaciones?: string | null;
 
   @Column({ length: 100 })
   numero_guia: string;
@@ -41,8 +41,8 @@ export class Paquete {
   @Column('float8')
   latitud: number;
 
-  @Column({ type: 'varchar', nullable: true})
-  evidencia: string;
+  @Column({ type: 'varchar', nullable: true })
+  evidencia: string | null;
 
   @CreateDateColumn({ name: 'fecha_creacion' })
   fecha_creacion: Date;
