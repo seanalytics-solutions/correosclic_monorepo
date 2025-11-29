@@ -1,10 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import {
-  ComplaintStatus,
-  ComplaintType,
-  ComplaintPriority,
-} from './constants';
+import { ComplaintStatus, ComplaintType, ComplaintPriority } from './constants';
 import { CreateComplaintDto } from './dto/create-complaint.dto';
 import { UpdateComplaintDto } from './dto/update-complaint.dto';
 
@@ -101,7 +97,7 @@ export class ComplaintsService {
 
   async findByProfile(profileId: number) {
     return this.prisma.complaint.findMany({
-      where: { profile_id: profileId },
+      where: { profileId: profileId },
       include: {
         profile: true,
         pedido: true,
@@ -113,7 +109,7 @@ export class ComplaintsService {
 
   async findByOrder(orderId: number) {
     return this.prisma.complaint.findMany({
-      where: { order_id: orderId },
+      where: { pedido_id: orderId },
       include: {
         profile: true,
         pedido: true,

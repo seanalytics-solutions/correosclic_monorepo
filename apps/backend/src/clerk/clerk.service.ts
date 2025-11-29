@@ -32,6 +32,6 @@ export class ClerkService {
       },
     });
 
-    await this.prisma.createAccount.deleteMany({ where: { correo: email } });
+    await this.prisma.usuarios.deleteMany({ where: { correo: email } });
   }
 }

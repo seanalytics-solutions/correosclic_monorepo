@@ -1,34 +1,32 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateAccount, Profile } from '@prisma/client';
+import { Usuarios } from '@prisma/client';
 
 @Injectable()
 export class UserService {
   private readonly logger = new Logger(UserService.name);
 
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: Partial<CreateAccount> & { profile?: any }) {
+  async create(data: Partial<Usuarios> & { profile?: any }) {
     const { profile, ...userData } = data;
-    
+
     // Prepare profile data if it exists
     let profileCreateData: any = undefined;
     if (profile) {
       // If profile is a TypeORM entity or object, we extract properties.
       // We assume it matches ProfileCreateInput roughly.
-      // We exclude 'id' if it's present and falsy/0/undefined to let DB generate it, 
+      // We exclude 'id' if it's present and falsy/0/undefined to let DB generate it,
       // or if it's auto-increment.
       const { id, ...restProfile } = profile;
       profileCreateData = {
-        create: restProfile
+        create: restProfile,
       };
     }
 
-    const user = await this.prisma.createAccount.create({
+    const user = await this.prisma.usuarios.create({
       data: {
-        ...userData as any,
+        ...(userData as any),
         tokenCreatedAt: new Date(),
         profile: profileCreateData,
       },
@@ -40,18 +38,18 @@ export class UserService {
   }
 
   findAll() {
-    return this.prisma.createAccount.findMany();
+    return this.prisma.usuarios.findMany();
   }
 
   findByCorreo(correo: string) {
-    return this.prisma.createAccount.findFirst({
+    return this.prisma.usuarios.findFirst({
       where: { correo },
       include: { profile: true },
     });
   }
 
   findByCorreoNoOAuth(correo: string) {
-    return this.prisma.createAccount.findFirst({
+    return this.prisma.usuarios.findFirst({
       where: {
         correo,
         password: { not: 'N/A: OAuth' },
@@ -60,14 +58,14 @@ export class UserService {
   }
 
   findById(id: number) {
-    return this.prisma.createAccount.findUnique({
+    return this.prisma.usuarios.findUnique({
       where: { id },
       include: { profile: true },
     });
   }
 
   async update(email: string, password: string) {
-    const result = await this.prisma.createAccount.updateMany({
+    const result = await this.prisma.usuarios.updateMany({
       where: {
         correo: email,
         password: { not: 'N/A: OAuth' },
@@ -90,7 +88,7 @@ export class UserService {
     },
   ) {
     try {
-      const result = await this.prisma.createAccount.updateMany({
+      const result = await this.prisma.usuarios.updateMany({
         where: {
           correo: email,
           password: { not: 'N/A: OAuth' },
@@ -113,7 +111,7 @@ export class UserService {
   }
 
   async updateConfirmado(email: string, confirmado: boolean) {
-    const result = await this.prisma.createAccount.updateMany({
+    const result = await this.prisma.usuarios.updateMany({
       where: {
         correo: email,
         password: { not: 'N/A: OAuth' },
@@ -132,7 +130,7 @@ export class UserService {
   async cleanExpiredTokens(): Promise<number> {
     try {
       const expirationTime = new Date(Date.now() + (360 - 10) * 60 * 1000); // 10 minutos atrás (compensación de UTC -6)
-      const result = await this.prisma.createAccount.updateMany({
+      const result = await this.prisma.usuarios.updateMany({
         where: {
           tokenCreatedAt: { lt: expirationTime },
           token: { not: null },
@@ -156,7 +154,7 @@ export class UserService {
     try {
       const expirationTime = new Date(Date.now() - 18 * 60 * 60 * 1000); // 24 horas (compensación de UTC -6)
 
-      const result = await this.prisma.createAccount.deleteMany({
+      const result = await this.prisma.usuarios.deleteMany({
         where: {
           confirmado: false,
           tokenCreatedAt: { lt: expirationTime, not: null },
@@ -175,7 +173,7 @@ export class UserService {
   }
 
   async findUnverifiedUsers(expirationTime: Date) {
-    return this.prisma.createAccount.findMany({
+    return this.prisma.usuarios.findMany({
       where: {
         confirmado: false,
         tokenCreatedAt: { lt: expirationTime },

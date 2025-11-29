@@ -20,13 +20,13 @@ export class CreateAccountService {
   ) {}
   async create(createCreateAccountDto: CreateCreateAccountDto) {
     const token = generateToken();
-    const user = await this.prisma.createAccount.create({
-      data: {
-        ...createCreateAccountDto,
-        token,
-        confirmado: false,
-      },
-    });
+    // const user = await this.prisma.usuarios.create({
+    //   data: {
+    //     ...createCreateAccountDto,
+    //     token,
+    //     confirmado: false,
+    //   },
+    // });
 
     await this.emailService.enviarConfirmacion({
       correo: createCreateAccountDto.correo,
@@ -61,7 +61,7 @@ export class CreateAccountService {
       throw new BadRequestException('Token no puede estar vacío');
     }
 
-    const user = await this.prisma.createAccount.findFirst({
+    const user = await this.prisma.usuarios.findFirst({
       where: { token },
     });
 
@@ -69,7 +69,7 @@ export class CreateAccountService {
       throw new NotFoundException('Token no valido');
     }
 
-    await this.prisma.createAccount.update({
+    await this.prisma.usuarios.update({
       where: { id: user.id },
       data: {
         token: '',
@@ -84,7 +84,7 @@ export class CreateAccountService {
     };
   }
   async completeName(id: number, completeNameAccountDto: CompleteNameDto) {
-    const user = await this.prisma.createAccount.findUnique({
+    const user = await this.prisma.usuarios.findUnique({
       where: { id },
     });
     if (!user) {
@@ -96,7 +96,7 @@ export class CreateAccountService {
       throw new UnauthorizedException('La cuenta no ha sido verificada');
     }
 
-    await this.prisma.createAccount.update({
+    await this.prisma.usuarios.update({
       where: { id },
       data: {
         nombre: completeNameAccountDto.nombre,
@@ -114,7 +114,7 @@ export class CreateAccountService {
     id: number,
     completePasswordAccountDto: CompletePasswordDto,
   ) {
-    const user = await this.prisma.createAccount.findUnique({
+    const user = await this.prisma.usuarios.findUnique({
       where: { id },
     });
     if (!user) {
@@ -126,7 +126,7 @@ export class CreateAccountService {
       throw new UnauthorizedException('La cuenta no ha sido verificada');
     }
 
-    await this.prisma.createAccount.update({
+    await this.prisma.usuarios.update({
       where: { id },
       data: {
         password: completePasswordAccountDto.password,
