@@ -81,4 +81,16 @@ export class StripeService {
     // 3. Guardar en base de datos
     return await this.saveCardToDatabase(paymentMethod, profileId);
   }
+
+  async getCardsByProfile(profileId: number) {
+    return await this.prisma.card.findMany({
+      where: { profileId },
+      select: {
+        id: true,
+        stripeCardId: true,
+        brand: true,
+        last4: true,
+      },
+    });
+  }
 }

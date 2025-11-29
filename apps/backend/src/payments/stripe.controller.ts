@@ -115,10 +115,7 @@ export class StripeController {
   })
   async getTarjetas(@Param('profileId') profileId: number) {
     // Consulta real a la tabla `card`
-    const tarjetas = await this.stripeService['cardRepo'].find({
-      where: { profileId },
-      select: ['id', 'stripeCardId', 'brand', 'last4'],
-    });
+    const tarjetas = await this.stripeService.getCardsByProfile(profileId);
     return tarjetas;
   }
 }
