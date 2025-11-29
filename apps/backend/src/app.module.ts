@@ -4,9 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { FacturasModule } from './facturas/facturas.module';
 import { PagosModule } from './pagos/pagos.module';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { typeOrmConfig } from './config/typeorm.config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
 import { CreateAccountModule } from './create-account/create-account.module';
 import { RoutesModule } from './routes/routes.module';
 import { ProfileModule } from './profile/profile.module';
@@ -54,10 +52,6 @@ import { CreateSellerModule } from './create_seller/create-seller.module';
       isGlobal: true,
     }),
     ScheduleModule.forRoot(),
-    TypeOrmModule.forRootAsync({
-      useFactory: typeOrmConfig,
-      inject: [ConfigService],
-    }),
     PrismaModule,
     CreateAccountModule,
     RoutesModule,

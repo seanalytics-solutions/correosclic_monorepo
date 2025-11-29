@@ -38,7 +38,6 @@
     "@nestjs/platform-express": "^11.1.2",
     "@nestjs/schedule": "^6.0.0",
     "@nestjs/swagger": "^11.2.0",
-    "@nestjs/typeorm": "^11.0.0",
     "@prisma/adapter-pg": "^7.0.1",
     "@prisma/client": "^7.0.1",
     "@react-pdf/renderer": "^4.3.1",
@@ -67,8 +66,7 @@
     "stripe": "^18.3.0",
     "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
-    "turbo": "^2.5.5",
-    "typeorm": "^0.3.25"
+    "turbo": "^2.5.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

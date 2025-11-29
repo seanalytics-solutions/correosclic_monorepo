@@ -1,31 +1,22 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
 import { OrdenDetalleDto } from './dto/orden-detalle.dto';
-import { Transaction } from '../transactions/entities/transaction.entity';
-import { Product } from '../products/entities/product.entity';
-import { Profile } from '../profile/entities/profile.entity';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class OrdenService {
-  constructor(
-    @InjectRepository(Transaction)
-    private readonly transactionRepo: Repository<Transaction>,
-
-    @InjectRepository(Product)
-    private readonly productRepo: Repository<Product>,
-
-    @InjectRepository(Profile)
-    private readonly profileRepo: Repository<Profile>,
-
-    @InjectDataSource()
-    private readonly dataSource: DataSource,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async obtenerDetalleOrden(id: number): Promise<OrdenDetalleDto> {
-    const transaction = await this.transactionRepo.findOne({
+    const transaction = await this.prisma.transaction.findUnique({
       where: { id },
-      relations: ['profile'],
+      include: {
+        profile: true,
+        contenidos: {
+          include: {
+            producto: true,
+          },
+        },
+      },
     });
 
     if (!transaction) {
@@ -34,22 +25,10 @@ export class OrdenService {
 
     const profile = transaction.profile;
 
-    const rawProductos = await this.dataSource
-      .getRepository('transaction_contents')
-      .createQueryBuilder('tc')
-      .leftJoinAndSelect(Product, 'product', 'product.id = tc.productoId')
-      .select([
-        'product.nombre AS nombre',
-        'tc.precio AS precio',
-        'tc.cantidad AS cantidad',
-      ])
-      .where('tc.transactionId = :id', { id })
-      .getRawMany();
-
-    const productos = rawProductos.map((p) => ({
-      nombre: p.nombre,
-      precio: Number(p.precio),
-      cantidad: Number(p.cantidad),
+    const productos = transaction.contenidos.map((tc) => ({
+      nombre: tc.producto?.nombre || 'Producto desconocido',
+      precio: Number(tc.precio),
+      cantidad: tc.cantidad,
     }));
 
     return {
