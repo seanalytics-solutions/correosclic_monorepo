@@ -1,7 +1,7 @@
-import React, { useCallback, useState } from 'react'
-import * as WebBrowser from 'expo-web-browser'
-import * as AuthSession from 'expo-auth-session'
-import { useSSO, useClerk } from '@clerk/clerk-expo'
+import React, { useCallback, useState } from "react";
+import * as WebBrowser from "expo-web-browser";
+import * as AuthSession from "expo-auth-session";
+import { useSSO, useClerk } from "@clerk/clerk-expo";
 import {
   View,
   Text,
@@ -11,137 +11,164 @@ import {
   Image,
   ScrollView,
   Alert,
-} from 'react-native'
-import { useNavigation } from '@react-navigation/native'
-import type { StackNavigationProp } from '@react-navigation/stack'
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useMyAuth } from '../../context/AuthContext'
+} from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { StackNavigationProp } from "@react-navigation/stack";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useMyAuth } from "../../context/AuthContext";
 // import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 
 type CheckoutStackParamList = {
-  SignUp: undefined
-  PswdReset: undefined
-}
+  SignUp: undefined;
+  PswdReset: undefined;
+};
 
-type NavigationProp = StackNavigationProp<CheckoutStackParamList>
+type NavigationProp = StackNavigationProp<CheckoutStackParamList>;
 
-WebBrowser.maybeCompleteAuthSession()
+WebBrowser.maybeCompleteAuthSession();
 
 export default function SignInScreen() {
-  const { startSSOFlow } = useSSO()
-  const clerk = useClerk()
-  const navigation = useNavigation<NavigationProp>()
-  const { setIsAuthenticated, reloadUserData } = useMyAuth()
-  const [emailAddress, setEmailAddress] = useState('')
-  const [password, setPassword] = useState('')
+  const { startSSOFlow } = useSSO();
+  const clerk = useClerk();
+  const navigation = useNavigation<NavigationProp>();
+  const { setIsAuthenticated, reloadUserData } = useMyAuth();
+  const [emailAddress, setEmailAddress] = useState("");
+  const [password, setPassword] = useState("");
 
   const onSignInPress = useCallback(async () => {
     try {
-      const res = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/auth/signin`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ correo: emailAddress, contrasena: password }),
-      })
+      const res = await fetch(
+        `${process.env.EXPO_PUBLIC_API_URL}/api/auth/signin`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ correo: emailAddress, contrasena: password }),
+        },
+      );
 
-      
       if (!res.ok && res.status === 401) {
-        const errorData = await res.json()
-        const errorMessage = errorData.message || ''
+        const errorData = await res.json();
+        const errorMessage = errorData.message || "";
 
-        if (errorMessage === 'Usuario no verificado') {
-          Alert.alert('Error', 'Usuario no verificado, por favor recuperar tu contraseña para poder ingresar.', [
-            {
-              text: 'Recuperar contraseña',
-              onPress: () => navigation.navigate('PswdReset' as never)
-            },
-            { text: 'Cancelar', style: 'cancel' }
-          ])
-          return
-        } else if (errorMessage === 'Credenciales inválidas') {
-          Alert.alert('Error', 'Credenciales inválidas, por favor verifica tu correo electrónico y contraseña.')
-          return
-        } else if (errorMessage === 'El perfil no está vinculado al usuario') {
-          Alert.alert('Error', 'El perfil no está vinculado al usuario, por favor contacta al administrador.')
-          return
+        if (errorMessage === "Usuario no verificado") {
+          Alert.alert(
+            "Error",
+            "Usuario no verificado, por favor recuperar tu contraseña para poder ingresar.",
+            [
+              {
+                text: "Recuperar contraseña",
+                onPress: () => navigation.navigate("PswdReset" as never),
+              },
+              { text: "Cancelar", style: "cancel" },
+            ],
+          );
+          return;
+        } else if (errorMessage === "Credenciales inválidas") {
+          Alert.alert(
+            "Error",
+            "Credenciales inválidas, por favor verifica tu correo electrónico y contraseña.",
+          );
+          return;
+        } else if (errorMessage === "El perfil no está vinculado al usuario") {
+          Alert.alert(
+            "Error",
+            "El perfil no está vinculado al usuario, por favor contacta al administrador.",
+          );
+          return;
         } else {
-          Alert.alert('Error', 'Ocurrió un error, por favor intenta nuevamente más tarde o contacta al administrador.')
-          return
+          Alert.alert(
+            "Error",
+            "Ocurrió un error, por favor intenta nuevamente más tarde o contacta al administrador.",
+          );
+          return;
         }
       }
       if (!res.ok) {
-        const errorText = await res.text()
-        Alert.alert('Error', `Error del servidor: ${res.status} - ${errorText}`)
-        return
+        const errorText = await res.text();
+        Alert.alert(
+          "Error",
+          `Error del servidor: ${res.status} - ${errorText}`,
+        );
+        return;
       }
 
-      const data = await res.json()
-      await AsyncStorage.setItem('token', data.token)
-      await reloadUserData()
-      setIsAuthenticated(true)
+      const data = await res.json();
+      await AsyncStorage.setItem("token", data.token);
+      await reloadUserData();
+      setIsAuthenticated(true);
     } catch (err) {
-      console.error('[onSignInPress] Error catch:', err)
+      console.error("[onSignInPress] Error catch:", err);
     }
-  }, [emailAddress, password, reloadUserData, setIsAuthenticated])
+  }, [emailAddress, password, reloadUserData, setIsAuthenticated]);
 
   const handleOAuthPress = useCallback(
-    async (strategy: 'oauth_google' | 'oauth_facebook' | 'oauth_apple') => {
+    async (strategy: "oauth_google" | "oauth_facebook" | "oauth_apple") => {
       try {
         const { createdSessionId, setActive } = await startSSOFlow({
           strategy,
           redirectUrl: AuthSession.makeRedirectUri({
             scheme: "correosdemexico",
-            path: 'sso-callback' 
+            path: "sso-callback",
           }),
-        })
+        });
 
         if (createdSessionId) {
-          await setActive!({ session: createdSessionId })
+          await setActive!({ session: createdSessionId });
 
-          const providerName = strategy.replace('oauth_', '')
-          const session = clerk.session
-          const sessionUser = session?.user
+          const providerName = strategy.replace("oauth_", "");
+          const session = clerk.session;
+          const sessionUser = session?.user;
           const externalAccount = sessionUser?.externalAccounts?.find(
-            (account) => account.provider === providerName
-          )
+            (account) => account.provider === providerName,
+          );
 
           const oauthData = {
             proveedor: providerName,
-            sub: externalAccount?.providerUserId || '',
-            correo: externalAccount?.emailAddress || '',
-            nombre: externalAccount?.firstName || '',
-          }
+            sub: externalAccount?.providerUserId || "",
+            correo: externalAccount?.emailAddress || "",
+            nombre: externalAccount?.firstName || "",
+          };
 
-          const res = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/auth/oauth`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(oauthData),
-          })
+          const res = await fetch(
+            `${process.env.EXPO_PUBLIC_API_URL}/api/auth/oauth`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(oauthData),
+            },
+          );
 
-          await clerk.signOut()
+          await clerk.signOut();
 
           if (!res.ok) {
-            const errorText = await res.text()
-            throw new Error(`OAuth backend error: ${res.status} - ${errorText}`)
+            const errorText = await res.text();
+            throw new Error(
+              `OAuth backend error: ${res.status} - ${errorText}`,
+            );
           }
 
-          const data = await res.json()
-          await AsyncStorage.setItem('token', data.token)
-          await reloadUserData()
-          setIsAuthenticated(true)
+          const data = await res.json();
+          await AsyncStorage.setItem("token", data.token);
+          await reloadUserData();
+          setIsAuthenticated(true);
         } else {
-          console.warn(`[handleOAuthPress] ${strategy} - No session created`)
+          console.warn(`[handleOAuthPress] ${strategy} - No session created`);
         }
       } catch (err) {
-        await clerk.signOut()
-        console.error(`[handleOAuthPress] OAuth ${strategy} error:`, err)
+        await clerk.signOut();
+        console.error(`[handleOAuthPress] OAuth ${strategy} error:`, err);
       }
     },
-    [startSSOFlow, reloadUserData, setIsAuthenticated, clerk]
-  )
+    [startSSOFlow, reloadUserData, setIsAuthenticated, clerk],
+  );
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Image source={require('../../assets/logo1.png')} style={styles.logo} resizeMode="contain" />
+      <Image
+        source={require("../../assets/logo1.png")}
+        style={styles.logo}
+        resizeMode="contain"
+      />
       <Text style={styles.title}>Iniciar Sesión</Text>
 
       <TextInput
@@ -151,18 +178,22 @@ export default function SignInScreen() {
         style={styles.input}
         keyboardType="email-address"
         autoCapitalize="none"
+        placeholderTextColor="#cccccc"
       />
 
       <TextInput
         placeholder="Contraseña"
         value={password}
+        placeholderTextColor="#cccccc"
         onChangeText={setPassword}
         style={styles.input}
         secureTextEntry
       />
 
       <View style={styles.optionsRow}>
-        <TouchableOpacity onPress={() => navigation.navigate('PswdReset' as never)}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate("PswdReset" as never)}
+        >
           <Text style={styles.link}>¿Olvidaste tu contraseña?</Text>
         </TouchableOpacity>
       </View>
@@ -173,10 +204,15 @@ export default function SignInScreen() {
 
       <Text style={styles.orText}>O continúa con:</Text>
 
-      <TouchableOpacity style={styles.socialButton} onPress={() => handleOAuthPress('oauth_google')}>
+      <TouchableOpacity
+        style={styles.socialButton}
+        onPress={() => handleOAuthPress("oauth_google")}
+      >
         <View style={styles.socialContent}>
           <Image
-            source={{ uri: 'https://crystalpng.com/wp-content/uploads/2025/05/google-logo.png' }}
+            source={{
+              uri: "https://crystalpng.com/wp-content/uploads/2025/05/google-logo.png",
+            }}
             style={styles.socialIcon}
             resizeMode="contain"
           />
@@ -198,22 +234,22 @@ export default function SignInScreen() {
         </View>
       </TouchableOpacity>*/}
 
-      <TouchableOpacity onPress={() => navigation.navigate('SignUp' as never)}>
+      <TouchableOpacity onPress={() => navigation.navigate("SignUp" as never)}>
         <Text style={styles.footerText}>
           ¿No tienes cuenta? <Text style={styles.footerLink}>Regístrate</Text>
         </Text>
       </TouchableOpacity>
     </ScrollView>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 24,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   logo: {
     width: 100,
@@ -222,59 +258,60 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 30,
-    textAlign: 'center',
+    textAlign: "center",
   },
   input: {
-    width: '100%',
+    width: "100%",
     height: 48,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderRadius: 10,
     paddingHorizontal: 12,
     marginBottom: 15,
-    backgroundColor: '#fafafa',
+    backgroundColor: "#fafafa",
+    color: "#000000",
   },
   optionsRow: {
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    width: "100%",
+    flexDirection: "row",
+    justifyContent: "flex-end",
     marginBottom: 20,
   },
   link: {
-    color: '#DE1484',
+    color: "#DE1484",
   },
   primaryButton: {
-    backgroundColor: '#DE1484',
+    backgroundColor: "#DE1484",
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 30,
     marginBottom: 16,
-    width: '100%',
-    alignItems: 'center',
+    width: "100%",
+    alignItems: "center",
   },
   primaryButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: "#fff",
+    fontWeight: "bold",
     fontSize: 16,
   },
   orText: {
     marginVertical: 10,
-    color: '#888',
+    color: "#888",
   },
   socialButton: {
-    width: '100%',
+    width: "100%",
     paddingVertical: 14,
     borderRadius: 30,
-    backgroundColor: '#f0f0f0',
-    alignItems: 'center',
+    backgroundColor: "#f0f0f0",
+    alignItems: "center",
     marginBottom: 12,
   },
   socialContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   socialIcon: {
     marginRight: 10,
@@ -283,15 +320,15 @@ const styles = StyleSheet.create({
   },
   socialText: {
     fontSize: 16,
-    color: '#333',
+    color: "#333",
   },
   footerText: {
-    textAlign: 'center',
-    color: '#555',
+    textAlign: "center",
+    color: "#555",
     marginTop: 16,
   },
   footerLink: {
-    color: '#DE1484',
-    fontWeight: 'bold',
+    color: "#DE1484",
+    fontWeight: "bold",
   },
-})
+});

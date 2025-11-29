@@ -1,20 +1,23 @@
 import React, { useState } from "react";
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  ScrollView, 
-  Alert, 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
   StyleSheet,
   SafeAreaView,
   StatusBar,
-  ActivityIndicator
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
-import { fromByteArray } from 'base64-js';
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
+import { fromByteArray } from "base64-js";
+import Constants from "expo-constants";
 
 const GuiaFormulario = ({ route, navigation }) => {
   // Recibe los datos del tarifador
@@ -33,10 +36,10 @@ const GuiaFormulario = ({ route, navigation }) => {
       codigoPostal: datosTarifador.codigoOrigen || "",
       localidad: "",
       estado: "",
-      pais: "Mexico"
-    }
+      pais: "Mexico",
+    },
   });
-  
+
   const [destinatario, setDestinatario] = useState({
     nombres: "",
     apellidos: "",
@@ -49,8 +52,8 @@ const GuiaFormulario = ({ route, navigation }) => {
       codigoPostal: datosTarifador.codigoDestino || "",
       localidad: "",
       estado: "",
-      pais: "Mexico"
-    }
+      pais: "Mexico",
+    },
   });
 
   const [valorDeclarado, setValorDeclarado] = useState("");
@@ -64,13 +67,22 @@ const GuiaFormulario = ({ route, navigation }) => {
       { valor: remitente.telefono, nombre: "Teléfono del remitente" },
       { valor: remitente.direccion.calle, nombre: "Calle del remitente" },
       { valor: remitente.direccion.numero, nombre: "Número del remitente" },
-      { valor: remitente.direccion.asentamiento, nombre: "Colonia del remitente" },
+      {
+        valor: remitente.direccion.asentamiento,
+        nombre: "Colonia del remitente",
+      },
       { valor: destinatario.nombres, nombre: "Nombres del destinatario" },
       { valor: destinatario.apellidos, nombre: "Apellidos del destinatario" },
       { valor: destinatario.telefono, nombre: "Teléfono del destinatario" },
       { valor: destinatario.direccion.calle, nombre: "Calle del destinatario" },
-      { valor: destinatario.direccion.numero, nombre: "Número del destinatario" },
-      { valor: destinatario.direccion.asentamiento, nombre: "Colonia del destinatario" },
+      {
+        valor: destinatario.direccion.numero,
+        nombre: "Número del destinatario",
+      },
+      {
+        valor: destinatario.direccion.asentamiento,
+        nombre: "Colonia del destinatario",
+      },
     ];
 
     for (const campo of camposRequeridos) {
@@ -88,62 +100,68 @@ const GuiaFormulario = ({ route, navigation }) => {
     }
 
     setLoading(true);
-    
+
     // Arma el objeto para el backend
     const paquete = {
       alto_cm: parseFloat(datosTarifador.alto),
       ancho_cm: parseFloat(datosTarifador.ancho),
-      largo_cm: parseFloat(datosTarifador.largo)
+      largo_cm: parseFloat(datosTarifador.largo),
     };
-    
+
     const peso = parseFloat(datosTarifador.peso);
-    
+
     const datosGuia = {
       remitente,
       destinatario,
       paquete,
       peso,
-      valorDeclarado: parseFloat(valorDeclarado) || 0
+      valorDeclarado: parseFloat(valorDeclarado) || 0,
     };
 
-    console.log('Datos a enviar:', JSON.stringify(datosGuia, null, 2));
+    console.log("Datos a enviar:", JSON.stringify(datosGuia, null, 2));
 
     try {
       const API_URL = process.env.EXPO_PUBLIC_API_URL;
-      
+
       if (!API_URL) {
-        throw new Error('URL de API no configurada');
+        throw new Error("URL de API no configurada");
       }
 
-      console.log('Enviando request a:', `${API_URL}/api/guias/generar-pdf-nacional`);
-      
-      const response = await fetch(`${API_URL}/api/guias/generar-pdf-nacional`, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Accept": "application/pdf"
-        },
-        body: JSON.stringify(datosGuia)
-      });
+      console.log(
+        "Enviando request a:",
+        `${API_URL}/api/guias/generar-pdf-nacional`,
+      );
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
+      const response = await fetch(
+        `${API_URL}/api/guias/generar-pdf-nacional`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/pdf",
+          },
+          body: JSON.stringify(datosGuia),
+        },
+      );
+
+      console.log("Response status:", response.status);
+      console.log("Response headers:", response.headers);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Error response:', errorText);
+        console.error("Error response:", errorText);
         throw new Error(errorText || `Error del servidor: ${response.status}`);
       }
 
       // Obtener el PDF como blob
 
       const pdfArrayBuffer = await response.arrayBuffer();
-      console.log('PDF ArrayBuffer size:', pdfArrayBuffer.byteLength);
+      console.log("PDF ArrayBuffer size:", pdfArrayBuffer.byteLength);
 
       const uint8Array = new Uint8Array(pdfArrayBuffer);
 
       const base64data = fromByteArray(uint8Array);
-      console.log('Base64 data generado, longitud:', base64data.length);
+      console.log("Base64 data generado, longitud:", base64data.length);
 
       /*const pdfBlob = new Blob([pdfArrayBuffer], { type: 'application/pdf' });
       console.log('PDF blob size:', pdfBlob.size);*/
@@ -153,23 +171,20 @@ const GuiaFormulario = ({ route, navigation }) => {
       // Convertir blob a base64 para guardarlo
 
       await FileSystem.writeAsStringAsync(fileUri, base64data, {
-      encoding: 'base64'
+        encoding: "base64",
       });
 
-      console.log('PDF guardado en:', fileUri);
+      console.log("PDF guardado en:", fileUri);
 
       if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(fileUri, { mimeType: 'application/pdf' });
+        await Sharing.shareAsync(fileUri, { mimeType: "application/pdf" });
       }
 
-      Alert.alert(
-      "Éxito", 
-      "PDF generado y listo para compartir.",
-      [{ text: "OK", onPress: () => navigation.goBack() }]
-      );
-
+      Alert.alert("Éxito", "PDF generado y listo para compartir.", [
+        { text: "OK", onPress: () => navigation.goBack() },
+      ]);
     } catch (err) {
-      console.error('Error completo:', err);
+      console.error("Error completo:", err);
       Alert.alert("Error", err.message || "No se pudo generar el PDF");
     } finally {
       setLoading(false);
@@ -180,10 +195,17 @@ const GuiaFormulario = ({ route, navigation }) => {
     navigation.goBack();
   };
 
-  const renderInput = (placeholder, value, onChangeText, keyboardType = "default", maxLength = null, required = false) => (
+  const renderInput = (
+    placeholder,
+    value,
+    onChangeText,
+    keyboardType = "default",
+    maxLength = null,
+    required = false,
+  ) => (
     <TextInput
       style={styles.input}
-      placeholder={`${placeholder}${required ? ' *' : ''}`}
+      placeholder={`${placeholder}${required ? " *" : ""}`}
       placeholderTextColor="#999"
       value={value}
       onChangeText={onChangeText}
@@ -196,191 +218,349 @@ const GuiaFormulario = ({ route, navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-            <Ionicons name="arrow-back" size={24} color="#000" />
-          </TouchableOpacity>
-          <Text style={styles.title}>
-            Generar guía de envío{"\n"}
-            <Text style={styles.subtitle}>MEXPOST</Text>
-          </Text>
-        </View>
-
-        {/* Resumen del envío */}
-        <View style={styles.resumenContainer}>
-          <Text style={styles.sectionTitle}>Resumen del envío</Text>
-          <View style={styles.resumenGrid}>
-            <View style={styles.resumenItem}>
-              <Text style={styles.resumenLabel}>Origen (CP)</Text>
-              <Text style={styles.resumenValue}>{datosTarifador.codigoOrigen}</Text>
-            </View>
-            <View style={styles.resumenItem}>
-              <Text style={styles.resumenLabel}>Destino (CP)</Text>
-              <Text style={styles.resumenValue}>{datosTarifador.codigoDestino}</Text>
-            </View>
-            <View style={styles.resumenItem}>
-              <Text style={styles.resumenLabel}>Peso</Text>
-              <Text style={styles.resumenValue}>{datosTarifador.peso} kg</Text>
-            </View>
-            <View style={styles.resumenItem}>
-              <Text style={styles.resumenLabel}>Dimensiones</Text>
-              <Text style={styles.resumenValue}>
-                {datosTarifador.largo}×{datosTarifador.ancho}×{datosTarifador.alto} cm
-              </Text>
-            </View>
-          </View>
-          <View style={styles.costoContainer}>
-            <Text style={styles.costoLabel}>Costo total:</Text>
-            <Text style={styles.costoValue}>MXN ${datosTarifador.costo}</Text>
-          </View>
-        </View>
-
-        {/* Formulario Remitente */}
-        <View style={styles.formSection}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="person-outline" size={20} color="#e91e63" />
-            <Text style={styles.sectionTitle}>Datos del remitente</Text>
-          </View>
-          
-          {renderInput("Nombres", remitente.nombres, 
-            v => setRemitente(r => ({ ...r, nombres: v })), "default", null, true)}
-          
-          {renderInput("Apellidos", remitente.apellidos, 
-            v => setRemitente(r => ({ ...r, apellidos: v })), "default", null, true)}
-          
-          {renderInput("Teléfono", remitente.telefono, 
-            v => setRemitente(r => ({ ...r, telefono: v })), "phone-pad", null, true)}
-          
-          <View style={styles.subsectionHeader}>
-            <Ionicons name="location-outline" size={16} color="#666" />
-            <Text style={styles.subsectionTitle}>Dirección</Text>
-          </View>
-          
-          {renderInput("Calle", remitente.direccion.calle, 
-            v => setRemitente(r => ({ ...r, direccion: { ...r.direccion, calle: v } })), "default", null, true)}
-          
-          <View style={styles.rowInputs}>
-            <View style={styles.inputHalf}>
-              {renderInput("Número", remitente.direccion.numero, 
-                v => setRemitente(r => ({ ...r, direccion: { ...r.direccion, numero: v } })), "default", null, true)}
-            </View>
-            <View style={styles.inputHalf}>
-              {renderInput("Número Interior", remitente.direccion.numeroInterior, 
-                v => setRemitente(r => ({ ...r, direccion: { ...r.direccion, numeroInterior: v } })))}
-            </View>
-          </View>
-          
-          {renderInput("Colonia/Asentamiento", remitente.direccion.asentamiento, 
-            v => setRemitente(r => ({ ...r, direccion: { ...r.direccion, asentamiento: v } })), "default", null, true)}
-          
-          <View style={styles.rowInputs}>
-            <View style={styles.inputHalf}>
-              <TextInput
-                style={[styles.input, styles.disabledInput]}
-                placeholder="Código Postal"
-                placeholderTextColor="#999"
-                value={remitente.direccion.codigoPostal}
-                editable={false}
-              />
-            </View>
-            <View style={styles.inputHalf}>
-              {renderInput("Localidad", remitente.direccion.localidad, 
-                v => setRemitente(r => ({ ...r, direccion: { ...r.direccion, localidad: v } })))}
-            </View>
-          </View>
-          
-          {renderInput("Estado", remitente.direccion.estado, 
-            v => setRemitente(r => ({ ...r, direccion: { ...r.direccion, estado: v } })))}
-        </View>
-
-        {/* Formulario Destinatario */}
-        <View style={styles.formSection}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="location" size={20} color="#e91e63" />
-            <Text style={styles.sectionTitle}>Datos del destinatario</Text>
-          </View>
-          
-          {renderInput("Nombres", destinatario.nombres, 
-            v => setDestinatario(r => ({ ...r, nombres: v })), "default", null, true)}
-          
-          {renderInput("Apellidos", destinatario.apellidos, 
-            v => setDestinatario(r => ({ ...r, apellidos: v })), "default", null, true)}
-          
-          {renderInput("Teléfono", destinatario.telefono, 
-            v => setDestinatario(r => ({ ...r, telefono: v })), "phone-pad", null, true)}
-          
-          <View style={styles.subsectionHeader}>
-            <Ionicons name="location-outline" size={16} color="#666" />
-            <Text style={styles.subsectionTitle}>Dirección</Text>
-          </View>
-          
-          {renderInput("Calle", destinatario.direccion.calle, 
-            v => setDestinatario(r => ({ ...r, direccion: { ...r.direccion, calle: v } })), "default", null, true)}
-          
-          <View style={styles.rowInputs}>
-            <View style={styles.inputHalf}>
-              {renderInput("Número", destinatario.direccion.numero, 
-                v => setDestinatario(r => ({ ...r, direccion: { ...r.direccion, numero: v } })), "default", null, true)}
-            </View>
-            <View style={styles.inputHalf}>
-              {renderInput("Número Interior", destinatario.direccion.numeroInterior, 
-                v => setDestinatario(r => ({ ...r, direccion: { ...r.direccion, numeroInterior: v } })))}
-            </View>
-          </View>
-          
-          {renderInput("Colonia/Asentamiento", destinatario.direccion.asentamiento, 
-            v => setDestinatario(r => ({ ...r, direccion: { ...r.direccion, asentamiento: v } })), "default", null, true)}
-          
-          <View style={styles.rowInputs}>
-            <View style={styles.inputHalf}>
-              <TextInput
-                style={[styles.input, styles.disabledInput]}
-                placeholder="Código Postal"
-                placeholderTextColor="#999"
-                value={destinatario.direccion.codigoPostal}
-                editable={false}
-              />
-            </View>
-            <View style={styles.inputHalf}>
-              {renderInput("Localidad", destinatario.direccion.localidad, 
-                v => setDestinatario(r => ({ ...r, direccion: { ...r.direccion, localidad: v } })))}
-            </View>
-          </View>
-          
-          {renderInput("Estado", destinatario.direccion.estado, 
-            v => setDestinatario(r => ({ ...r, direccion: { ...r.direccion, estado: v } })))}
-        </View>
-
-        {/* Valor Declarado */}
-        <View style={styles.formSection}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="cash-outline" size={20} color="#e91e63" />
-            <Text style={styles.sectionTitle}>Valor declarado</Text>
-          </View>
-          
-          {renderInput("Valor declarado (MXN)", valorDeclarado, setValorDeclarado, "numeric")}
-        </View>
-
-        {/* Botón de generar PDF */}
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[styles.generateButton, loading && styles.disabledButton]}
-            onPress={handleSubmit}
-            disabled={loading}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View
+            style={[styles.header, { paddingTop: Constants.statusBarHeight }]}
           >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <Ionicons name="document-text-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.generateButtonText}>Generar PDF de la guía</Text>
-              </>
+            <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+              <Ionicons name="arrow-back" size={24} color="#000" />
+            </TouchableOpacity>
+            <Text style={styles.title}>
+              Generar guía de envío{"\n"}
+              <Text style={styles.subtitle}>MEXPOST</Text>
+            </Text>
+          </View>
+
+          {/* Resumen del envío */}
+          <View style={styles.resumenContainer}>
+            <Text style={styles.sectionTitle}>Resumen del envío</Text>
+            <View style={styles.resumenGrid}>
+              <View style={styles.resumenItem}>
+                <Text style={styles.resumenLabel}>Origen (CP)</Text>
+                <Text style={styles.resumenValue}>
+                  {datosTarifador.codigoOrigen}
+                </Text>
+              </View>
+              <View style={styles.resumenItem}>
+                <Text style={styles.resumenLabel}>Destino (CP)</Text>
+                <Text style={styles.resumenValue}>
+                  {datosTarifador.codigoDestino}
+                </Text>
+              </View>
+              <View style={styles.resumenItem}>
+                <Text style={styles.resumenLabel}>Peso</Text>
+                <Text style={styles.resumenValue}>
+                  {datosTarifador.peso} kg
+                </Text>
+              </View>
+              <View style={styles.resumenItem}>
+                <Text style={styles.resumenLabel}>Dimensiones</Text>
+                <Text style={styles.resumenValue}>
+                  {datosTarifador.largo}×{datosTarifador.ancho}×
+                  {datosTarifador.alto} cm
+                </Text>
+              </View>
+            </View>
+            <View style={styles.costoContainer}>
+              <Text style={styles.costoLabel}>Costo total:</Text>
+              <Text style={styles.costoValue}>MXN ${datosTarifador.costo}</Text>
+            </View>
+          </View>
+
+          {/* Formulario Remitente */}
+          <View style={styles.formSection}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="person-outline" size={20} color="#e91e63" />
+              <Text style={styles.sectionTitle}>Datos del remitente</Text>
+            </View>
+
+            {renderInput(
+              "Nombres",
+              remitente.nombres,
+              (v) => setRemitente((r) => ({ ...r, nombres: v })),
+              "default",
+              null,
+              true,
             )}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+
+            {renderInput(
+              "Apellidos",
+              remitente.apellidos,
+              (v) => setRemitente((r) => ({ ...r, apellidos: v })),
+              "default",
+              null,
+              true,
+            )}
+
+            {renderInput(
+              "Teléfono",
+              remitente.telefono,
+              (v) => setRemitente((r) => ({ ...r, telefono: v })),
+              "phone-pad",
+              null,
+              true,
+            )}
+
+            <View style={styles.subsectionHeader}>
+              <Ionicons name="location-outline" size={16} color="#666" />
+              <Text style={styles.subsectionTitle}>Dirección</Text>
+            </View>
+
+            {renderInput(
+              "Calle",
+              remitente.direccion.calle,
+              (v) =>
+                setRemitente((r) => ({
+                  ...r,
+                  direccion: { ...r.direccion, calle: v },
+                })),
+              "default",
+              null,
+              true,
+            )}
+
+            <View style={styles.rowInputs}>
+              <View style={styles.inputHalf}>
+                {renderInput(
+                  "Número",
+                  remitente.direccion.numero,
+                  (v) =>
+                    setRemitente((r) => ({
+                      ...r,
+                      direccion: { ...r.direccion, numero: v },
+                    })),
+                  "default",
+                  null,
+                  true,
+                )}
+              </View>
+              <View style={styles.inputHalf}>
+                {renderInput(
+                  "Número Interior",
+                  remitente.direccion.numeroInterior,
+                  (v) =>
+                    setRemitente((r) => ({
+                      ...r,
+                      direccion: { ...r.direccion, numeroInterior: v },
+                    })),
+                )}
+              </View>
+            </View>
+
+            {renderInput(
+              "Colonia/Asentamiento",
+              remitente.direccion.asentamiento,
+              (v) =>
+                setRemitente((r) => ({
+                  ...r,
+                  direccion: { ...r.direccion, asentamiento: v },
+                })),
+              "default",
+              null,
+              true,
+            )}
+
+            <View style={styles.rowInputs}>
+              <View style={styles.inputHalf}>
+                <TextInput
+                  style={[styles.input, styles.disabledInput]}
+                  placeholder="Código Postal"
+                  placeholderTextColor="#999"
+                  value={remitente.direccion.codigoPostal}
+                  editable={false}
+                />
+              </View>
+              <View style={styles.inputHalf}>
+                {renderInput("Localidad", remitente.direccion.localidad, (v) =>
+                  setRemitente((r) => ({
+                    ...r,
+                    direccion: { ...r.direccion, localidad: v },
+                  })),
+                )}
+              </View>
+            </View>
+
+            {renderInput("Estado", remitente.direccion.estado, (v) =>
+              setRemitente((r) => ({
+                ...r,
+                direccion: { ...r.direccion, estado: v },
+              })),
+            )}
+          </View>
+
+          {/* Formulario Destinatario */}
+          <View style={styles.formSection}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="location" size={20} color="#e91e63" />
+              <Text style={styles.sectionTitle}>Datos del destinatario</Text>
+            </View>
+
+            {renderInput(
+              "Nombres",
+              destinatario.nombres,
+              (v) => setDestinatario((r) => ({ ...r, nombres: v })),
+              "default",
+              null,
+              true,
+            )}
+
+            {renderInput(
+              "Apellidos",
+              destinatario.apellidos,
+              (v) => setDestinatario((r) => ({ ...r, apellidos: v })),
+              "default",
+              null,
+              true,
+            )}
+
+            {renderInput(
+              "Teléfono",
+              destinatario.telefono,
+              (v) => setDestinatario((r) => ({ ...r, telefono: v })),
+              "phone-pad",
+              null,
+              true,
+            )}
+
+            <View style={styles.subsectionHeader}>
+              <Ionicons name="location-outline" size={16} color="#666" />
+              <Text style={styles.subsectionTitle}>Dirección</Text>
+            </View>
+
+            {renderInput(
+              "Calle",
+              destinatario.direccion.calle,
+              (v) =>
+                setDestinatario((r) => ({
+                  ...r,
+                  direccion: { ...r.direccion, calle: v },
+                })),
+              "default",
+              null,
+              true,
+            )}
+
+            <View style={styles.rowInputs}>
+              <View style={styles.inputHalf}>
+                {renderInput(
+                  "Número",
+                  destinatario.direccion.numero,
+                  (v) =>
+                    setDestinatario((r) => ({
+                      ...r,
+                      direccion: { ...r.direccion, numero: v },
+                    })),
+                  "default",
+                  null,
+                  true,
+                )}
+              </View>
+              <View style={styles.inputHalf}>
+                {renderInput(
+                  "Número Interior",
+                  destinatario.direccion.numeroInterior,
+                  (v) =>
+                    setDestinatario((r) => ({
+                      ...r,
+                      direccion: { ...r.direccion, numeroInterior: v },
+                    })),
+                )}
+              </View>
+            </View>
+
+            {renderInput(
+              "Colonia/Asentamiento",
+              destinatario.direccion.asentamiento,
+              (v) =>
+                setDestinatario((r) => ({
+                  ...r,
+                  direccion: { ...r.direccion, asentamiento: v },
+                })),
+              "default",
+              null,
+              true,
+            )}
+
+            <View style={styles.rowInputs}>
+              <View style={styles.inputHalf}>
+                <TextInput
+                  style={[styles.input, styles.disabledInput]}
+                  placeholder="Código Postal"
+                  placeholderTextColor="#999"
+                  value={destinatario.direccion.codigoPostal}
+                  editable={false}
+                />
+              </View>
+              <View style={styles.inputHalf}>
+                {renderInput(
+                  "Localidad",
+                  destinatario.direccion.localidad,
+                  (v) =>
+                    setDestinatario((r) => ({
+                      ...r,
+                      direccion: { ...r.direccion, localidad: v },
+                    })),
+                )}
+              </View>
+            </View>
+
+            {renderInput("Estado", destinatario.direccion.estado, (v) =>
+              setDestinatario((r) => ({
+                ...r,
+                direccion: { ...r.direccion, estado: v },
+              })),
+            )}
+          </View>
+
+          {/* Valor Declarado */}
+          <View style={styles.formSection}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="cash-outline" size={20} color="#e91e63" />
+              <Text style={styles.sectionTitle}>Valor declarado</Text>
+            </View>
+
+            {renderInput(
+              "Valor declarado (MXN)",
+              valorDeclarado,
+              setValorDeclarado,
+              "numeric",
+            )}
+          </View>
+
+          {/* Botón de generar PDF */}
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[styles.generateButton, loading && styles.disabledButton]}
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons
+                    name="document-text-outline"
+                    size={20}
+                    color="#fff"
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text style={styles.generateButtonText}>
+                    Generar PDF de la guía
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

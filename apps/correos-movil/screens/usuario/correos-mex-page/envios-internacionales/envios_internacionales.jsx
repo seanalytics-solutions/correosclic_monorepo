@@ -10,6 +10,7 @@ import {
   StatusBar,
 } from "react-native";
 import Icon from "react-native-vector-icons/Feather";
+import Constants from "expo-constants";
 
 // --- DATOS CON RUTAS DE IMAGEN CORRECTAS Y TEXTO SIMPLIFICADO ---
 const cardData = [
@@ -73,7 +74,9 @@ export default function EnviosInternacionalesScreen({ navigation }) {
       <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
       <ScrollView style={styles.container}>
         {/* Header con botón de regreso */}
-        <View style={styles.header}>
+        <View
+          style={[styles.header, { paddingTop: Constants.statusBarHeight }]}
+        >
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.backButton}
