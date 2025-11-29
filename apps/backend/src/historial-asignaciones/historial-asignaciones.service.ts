@@ -22,7 +22,7 @@ export class HistorialAsignacionesService {
         curp: curp.toUpperCase(),
         placasUnidad,
         claveOficinaSalida: oficinaSalida,
-        claveOficinaDestino: claveCuoDestino,
+        claveOficinaDestino: claveCuoDestino ?? '',
         claveOficinaActual: oficinaSalida, // Inicialmente está en la oficina de salida
       },
     });
@@ -56,26 +56,26 @@ export class HistorialAsignacionesService {
   }
 
   async finalizarAsignacion(curp: string, placasUnidad: string): Promise<void> {
-    // Prisma updateMany doesn't support order/limit directly in the same way, 
+    // Prisma updateMany doesn't support order/limit directly in the same way,
     // but here we want to update active assignments.
     // Assuming we want to close the active one.
-    
+
     // Find active assignment first to be safe or updateMany where fechaFinalizacion is null
     await this.prisma.historialAsignacion.updateMany({
-      where: { 
-        curp: curp.toUpperCase(), 
-        placasUnidad, 
-        fechaFinalizacion: null 
+      where: {
+        curp: curp.toUpperCase(),
+        placasUnidad,
+        fechaFinalizacion: null,
       },
       data: { fechaFinalizacion: new Date() },
     });
   }
 
-  async getHistorial(
-    placas?: string,
-    curp?: string,
-  ) {
-    const where: any = {};
+  async getHistorial(placas?: string, curp?: string) {
+    const where: {
+      placasUnidad?: string;
+      curp?: string;
+    } = {};
     if (placas) where.placasUnidad = placas;
     if (curp) where.curp = curp.toUpperCase();
 
@@ -85,10 +85,7 @@ export class HistorialAsignacionesService {
     });
   }
 
-  async registrarRetornoOrigen(
-    curp: string,
-    placasUnidad: string,
-  ) {
+  async registrarRetornoOrigen(curp: string, placasUnidad: string) {
     const asignacion = await this.prisma.historialAsignacion.findFirst({
       where: {
         curp: curp.toUpperCase(),
