@@ -356,7 +356,7 @@ export default function HomeUser() {
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             style={styles.carousel}
-            onScrollEndDrag={(event) => {
+            onMomentumScrollEnd={(event) => {
               const newIndex = Math.round(
                 event.nativeEvent.contentOffset.x / screenWidth,
               );
@@ -907,6 +907,7 @@ const styles = StyleSheet.create({
   servicesScrollContent: {
     paddingHorizontal: moderateScale(16),
     paddingRight: moderateScale(16),
+    paddingVertical: moderateScale(16),
   },
   serviceCard: {
     backgroundColor: "#fefafaff",
