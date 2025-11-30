@@ -91,10 +91,7 @@ export class ConductoresService {
     });
   }
 
-  async updateLicenciaVigente(
-    curp: string,
-    dto: UpdateLicenciaVigenteDto,
-  ) {
+  async updateLicenciaVigente(curp: string, dto: UpdateLicenciaVigenteDto) {
     const conductor = await this.prisma.conductor.findUnique({
       where: { curp },
     });
@@ -116,4 +113,3 @@ export class ConductoresService {
     }
   }
 }
-

@@ -13,7 +13,8 @@ export class CouponsService {
 
   findAllGifted() {
     return this.prisma.giftedCoupon.findMany({
-      include: { user: true },
+      // Update the include property with the correct relation name or remove it if not needed
+      // include: { correctRelationName: true },
     });
   }
 }

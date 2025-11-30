@@ -7,30 +7,40 @@ datasource db {
 }
 
 model User {
-  id            Int            @id @default(autoincrement())
-  nombre        String
-  correo        String         @unique
-  contrasena    String
-  rol           String         @default("usuario")
-  giftedCoupons GiftedCoupon[]
+  id         Int    @id @default(autoincrement())
+  nombre     String
+  correo     String @unique
+  contrasena String
+  rol        String @default("usuario")
 
   @@map("user")
 }
 
 model Usuarios {
-  id             Int       @id @default(autoincrement())
+  id             Int            @id @default(autoincrement())
   nombre         String?
   apellido       String?
-  correo         String   @unique
-  password       String   @map("contrasena")
-  confirmado     Boolean   @default(false)
+  correo         String         @unique
+  password       String         @map("contrasena")
+  confirmado     Boolean        @default(false)
   token          String?
-  tokenCreatedAt DateTime? @default(now()) @map("token_created_at")
-  rol            String    @default("usuario")
-
-  profile Profile?
+  tokenCreatedAt DateTime?      @default(now()) @map("token_created_at")
+  rol            String         @default("usuario")
+  profile        Profile?
+  giftedCoupons  GiftedCoupon[]
 
   @@map("usuarios")
+}
+
+model deletion_reason {
+  id              Int      @id @default(autoincrement())
+  selected_reason String
+  other_reason    String?
+  created_at      DateTime @default(now())
+  profileId       Int
+  profile         Profile  @relation(fields: [profileId], references: [id])
+
+  @@map("deletion_reasons")
 }
 
 model Profile {
@@ -50,15 +60,16 @@ model Profile {
   usuario            Usuarios? @relation(fields: [usuarioId], references: [id])
   productosFavoritos Product[] @relation("Favoritos")
 
-  facturas     Factura[]
-  transactions Transaction[]
-  favoritos    Favorito[]
-  complaints   Complaint[]
-  carrito      Carrito[]
-  direcciones  Misdireccione[]
-  cards        Card[]
-  reviews      Review[]
-  pedidos      Pedido[]
+  facturas        Factura[]
+  transactions    Transaction[]
+  favoritos       Favorito[]
+  complaints      Complaint[]
+  carrito         Carrito[]
+  direcciones     Misdireccione[]
+  cards           Card[]
+  reviews         Review[]
+  pedidos         Pedido[]
+  deletionReasons deletion_reason[]
 }
 
 model Product {
@@ -93,6 +104,40 @@ model Product {
   complaints          Complaint[] // <-- Agregar esta línea
 
   @@map("productos")
+}
+
+enum CuponesTipoEnum {
+  porcentaje
+  monto_fijo
+}
+
+enum CuponesEstadoEnum {
+  activo
+  inactivo
+  expirado
+}
+
+model Cupon {
+  id                   Int               @id @default(autoincrement())
+  codigo               String            @unique @db.VarChar(50)
+  descripcion          String            @db.VarChar(200)
+  tipo                 CuponesTipoEnum   @default(porcentaje)
+  valor                Decimal           @db.Decimal(10, 2)
+  montoMinimo          Decimal           @default(0) @map("monto_minimo") @db.Decimal(10, 2)
+  descuentoMaximo      Decimal?          @map("descuento_maximo") @db.Decimal(10, 2)
+  usosMaximos          Int               @default(1) @map("usos_maximos")
+  usosActuales         Int               @default(0) @map("usos_actuales")
+  fechaExpiracion      DateTime?         @map("fecha_expiracion")
+  estado               CuponesEstadoEnum @default(activo)
+  fechaCreacion        DateTime          @default(now()) @map("fecha_creacion")
+  fechaActualizacion   DateTime          @default(now()) @updatedAt @map("fecha_actualizacion")
+  usuarioCreadorId     Int?              @map("usuario_creador_id")
+  usoUnicoPorUsuario   Boolean           @default(false) @map("uso_unico_por_usuario")
+  categoriasAplicables Json?             @map("categorias_aplicables")
+  productosAplicables  Json?             @map("productos_aplicables")
+  giftedCoupons        GiftedCoupon[]
+
+  @@map("cupones")
 }
 
 model ProductImage {
@@ -313,8 +358,10 @@ model Oficina {
   horario_atencion     String?  @db.VarChar(150)
   fecha_registro       DateTime @default(now())
 
-  unidades             Unidad[]              @relation("OficinaUnidad")
-  unidadesAsignadas    Unidad[]              @relation("OficinaAsignada")
+  unidades          Unidad[]         @relation("OficinaUnidad")
+  unidadesAsignadas Unidad[]         @relation("OficinaAsignada")
+  unidadSucursales  UnidadSucursal[]
+
   conductores          Conductor[]
   historialAsignacions HistorialAsignacion[]
 
@@ -356,8 +403,21 @@ model Unidad {
 
   envios               Envio[]
   historialAsignacions HistorialAsignacion[]
+  unidadSucursales     UnidadSucursal[]
 
   @@map("unidades")
+}
+
+model UnidadSucursal {
+  id              Int     @id @default(autoincrement())
+  claveSucursal   String  @map("clave_sucursal")
+  oficina         Oficina @relation(fields: [claveSucursal], references: [clave_cuo])
+  estadoUnidad    String  @map("estado_unidad")
+  conductorUnidad String  @map("conductor_unidad")
+  idUnidad        Int     @unique @map("id_unidad")
+  unidad          Unidad  @relation(fields: [idUnidad], references: [id])
+
+  @@map("unidad_sucursal")
 }
 
 model TipoVehiculo {
@@ -366,7 +426,7 @@ model TipoVehiculo {
   capacidadKg  Decimal @map("capacidad_kg") @db.Decimal(10, 2)
 
   unidades Unidad[]
-  oficinas TipoVehiculoOficina[]
+  oficinas TipoVehiculoOficina[] // ← Relación inversa ya existe
 
   @@map("tipos_vehiculos")
 }
@@ -416,7 +476,7 @@ model Envio {
   guia    Guia   @relation(fields: [id_guia], references: [id_guia], onDelete: Cascade)
 
   id_unidad Int?
-  unidad    Unidad? @relation(fields: [id_unidad], references: [id])
+  unidad    Unidad? @relation(fields: [id_unidad], references: [id], onDelete: SetNull)
 
   @@map("envios")
 }
@@ -550,9 +610,11 @@ model CreatedCoupon {
 }
 
 model GiftedCoupon {
-  id      Int  @id @default(autoincrement())
-  user_id Int
-  user    User @relation(fields: [user_id], references: [id])
+  id        Int      @id @default(autoincrement())
+  user_id   Int
+  usuario   Usuarios @relation(fields: [user_id], references: [id])
+  coupon_id Int
+  cupon     Cupon    @relation(fields: [coupon_id], references: [id])
 
   @@map("gifted_coupons")
 }
@@ -667,4 +729,49 @@ model IncidenciaGuia {
   id_usuario_responsable String   @db.VarChar
 
   @@map("incidencias_guias")
+}
+
+enum descuentos_tipo_enum {
+  porcentaje
+  monto_fijo
+}
+
+enum descuentos_tipo_aplicacion_enum {
+  producto
+  categoria
+  carrito
+  envio
+}
+
+enum descuentos_estado_enum {
+  activo
+  inactivo
+  programado
+  expirado
+}
+
+model Descuento {
+  id                   Int                             @id @default(autoincrement())
+  nombre               String                          @db.VarChar(100)
+  descripcion          String?
+  tipo                 descuentos_tipo_enum            @default(porcentaje)
+  valor                Decimal                         @db.Decimal(10, 2)
+  tipoAplicacion       descuentos_tipo_aplicacion_enum @map("tipo_aplicacion")
+  valoresAplicacion    Json?                           @map("valores_aplicacion")
+  montoMinimo          Decimal                         @default(0) @map("monto_minimo") @db.Decimal(10, 2)
+  descuentoMaximo      Decimal?                        @map("descuento_maximo") @db.Decimal(10, 2)
+  fechaInicio          DateTime?                       @map("fecha_inicio")
+  fechaFin             DateTime?                       @map("fecha_fin")
+  estado               descuentos_estado_enum          @default(activo)
+  prioridad            Int                             @default(10)
+  combinable           Boolean                         @default(true)
+  combinableConCupones Boolean                         @default(true) @map("combinable_con_cupones")
+  usosMaximos          Int?                            @map("usos_maximos")
+  usosActuales         Int                             @default(0) @map("usos_actuales")
+  automatico           Boolean                         @default(false)
+  fechaCreacion        DateTime                        @default(now()) @map("fecha_creacion")
+  fechaActualizacion   DateTime                        @default(now()) @updatedAt @map("fecha_actualizacion")
+  usuarioCreadorId     Int?                            @map("usuario_creador_id")
+
+  @@map("descuentos")
 }
