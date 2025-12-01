@@ -88,6 +88,7 @@ export class PedidosService {
           },
         },
         direccion: true,
+        factura: true,
       },
       orderBy: { fecha: 'desc' },
     });
@@ -107,6 +108,7 @@ export class PedidosService {
           },
         },
         direccion: true,
+        factura: true,
       },
       orderBy: { fecha: 'desc' },
     });
@@ -126,6 +128,7 @@ export class PedidosService {
           },
         },
         direccion: true,
+        factura: true,
       },
     });
 
