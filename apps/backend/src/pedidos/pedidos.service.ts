@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreatePedidoDto } from './dto/create-pedido.dto';
 import { UpdatePedidoDto } from './dto/update-pedido.dto';
 
@@ -14,9 +14,7 @@ export class PedidosService {
       where: { id: profileId },
     });
     if (!profile) {
-      throw new NotFoundException(
-        `El perfil con ID ${profileId} no existe`,
-      );
+      throw new NotFoundException(`El perfil con ID ${profileId} no existe`);
     }
 
     const direccion = await this.prisma.misdireccione.findUnique({
@@ -169,4 +167,3 @@ export class PedidosService {
     return { message: 'Pedido eliminado correctamente' };
   }
 }
-

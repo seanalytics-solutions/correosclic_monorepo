@@ -5,6 +5,7 @@ import { plantillaGuiaInternacional } from './plantillas/guia-plantilla-internac
 import { GuiaDomainEntity } from '../../../guias_trazabilidad/business-logic/guia.domain-entity-root';
 import { GuiaMapper } from '../mappers/guia.mapper';
 import { plantillaGuiaNacional } from './plantillas/guia-plantilla-nacional';
+import { pdf } from '@react-pdf/renderer'; // ✅ Funciona con v3.x
 
 @Injectable()
 export class PDFGeneratorRepository implements PDFGeneratorRepositoryInterface {
@@ -13,8 +14,6 @@ export class PDFGeneratorRepository implements PDFGeneratorRepositoryInterface {
     qrCodeDataURL: string,
   ): Promise<Result<Buffer>> {
     try {
-      const { pdf } = await import('@react-pdf/renderer');
-
       const data = GuiaMapper.toPdfPayload(pdfPayload);
       const GuiaDocument = await plantillaGuiaNacional(data, qrCodeDataURL);
 
@@ -29,11 +28,9 @@ export class PDFGeneratorRepository implements PDFGeneratorRepositoryInterface {
 
   async generarGuiaPDFInternacional(
     pdfPayload: GuiaDomainEntity,
-    qrCodeDataURL,
+    qrCodeDataURL: string,
   ): Promise<Result<Buffer>> {
     try {
-      const { pdf } = await import('@react-pdf/renderer');
-
       const data = GuiaMapper.toPdfPayload(pdfPayload);
       const GuiaDocument = await plantillaGuiaInternacional(
         data,

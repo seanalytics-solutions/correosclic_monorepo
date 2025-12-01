@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { SolicitudDto } from './dto/solicitud.dto';
 import {
   PedidoAsignadoDto,
@@ -42,19 +42,19 @@ export class VendedorService {
         productos: {
           some: {
             producto: {
-              idPerfil: profileId
-            }
-          }
-        }
+              idPerfil: profileId,
+            },
+          },
+        },
       },
       include: {
         productos: {
           include: {
-            producto: true
-          }
-        }
+            producto: true,
+          },
+        },
       },
-      orderBy: { fecha: 'desc' }
+      orderBy: { fecha: 'desc' },
     });
 
     console.log('📦 Pedidos encontrados:', pedidos.length);
@@ -63,7 +63,7 @@ export class VendedorService {
 
     const primeraGuia = await this.prisma.guia.findFirst({
       include: { destinatario: true },
-      orderBy: { fecha_creacion: 'asc' }
+      orderBy: { fecha_creacion: 'asc' },
     });
 
     for (const pedido of pedidos) {

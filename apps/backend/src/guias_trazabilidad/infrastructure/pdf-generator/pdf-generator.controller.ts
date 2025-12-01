@@ -120,6 +120,16 @@ export class GuiaPdfController {
       console.error('💥 Error en generarPdfNacional:', error);
       console.error('Stack trace:', error.stack);
 
+      // Manejo específico para errores de import
+      if (error.message?.includes('require() of ES Module')) {
+        console.error('⚠️ Error de compatibilidad ESM/CommonJS detectado');
+        return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+          error: 'Error de configuración del módulo PDF',
+          mensaje: 'Incompatibilidad de módulos ES. Contacte al administrador.',
+          timestamp: new Date().toISOString(),
+        });
+      }
+
       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         error: 'Error interno del servidor',
         mensaje: error.message,

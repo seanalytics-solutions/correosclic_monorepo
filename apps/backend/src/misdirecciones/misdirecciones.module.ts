@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MisdireccionesService } from './misdirecciones.service';
 import { MisdireccionesController } from './misdirecciones.controller';
-import { PrismaModule } from 'src/prisma/prisma.module';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [PrismaModule],

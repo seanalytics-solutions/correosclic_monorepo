@@ -26,10 +26,12 @@ model Usuarios {
   token          String?
   tokenCreatedAt DateTime? @default(now()) @map("token_created_at")
   rol            String    @default("usuario")
+  
 
   profile            Profile?
   giftedCoupons      GiftedCoupon[]
   solicitudVendedors SolicitudVendedor[]
+  products          Product[]
 
   @@map("usuarios")
 }
@@ -63,7 +65,7 @@ model Profile {
   codigoPostal     String  @db.VarChar(5)
   imagen           String  @default("https://res.cloudinary.com/dgpd2ljyh/image/upload/v1748920792/default_nlbjlp.jpg")
   stripeCustomerId String?
-
+  RFC           String?
   usuarioId          Int?      @unique @map("usuario_id")
   Usuarios           Usuarios? @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   productosFavoritos Product[] @relation("Favoritos")
@@ -101,8 +103,9 @@ model Product {
   idPerfil            Int?
   id_category         Int?
   category            categories?          @relation(fields: [id_category], references: [id])
-  sellerId            Int?
-  seller              CreateSeller?        @relation(fields: [sellerId], references: [id])
+  sellerId     Int?
+  seller    Usuarios? @relation(fields: [sellerId], references: [id])
+
   favoritoDe          Profile[]            @relation("Favoritos")
   images              ProductImage[]
   favoritos           Favorito[]
@@ -606,8 +609,6 @@ model CreateSeller {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   lastLogin     DateTime?
-
-  products Product[]
 
   @@map("create_seller")
 }

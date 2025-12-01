@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateMisdireccioneDto } from './dto/create-misdireccione.dto';
 import { UpdateMisdireccioneDto } from './dto/update-misdireccione.dto';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class MisdireccionesService {

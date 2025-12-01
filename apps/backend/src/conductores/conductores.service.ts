@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { ConductorResponseDto } from './dto/conductor-response.dto';
 import { CreateConductorDto } from './dto/create-conductor.dto';
 import { UpdateDisponibilidadDto } from './dto/update-disponibilidad.dto';

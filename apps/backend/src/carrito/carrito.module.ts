@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CarritoService } from './carrito.service';
 import { CarritoController } from './carrito.controller';
-import { PrismaModule } from 'src/prisma/prisma.module';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [PrismaModule],
@@ -9,4 +9,3 @@ import { PrismaModule } from 'src/prisma/prisma.module';
   providers: [CarritoService],
 })
 export class CarritoModule {}
-
