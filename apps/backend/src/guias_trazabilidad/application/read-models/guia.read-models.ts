@@ -9,6 +9,7 @@ export interface GuiaReadModel {
   ancho_cm: number;
   fecha_creacion: Date;
   fecha_entrega_estimada: Date;
+  key_pdf: string;
 
   // remitente (datos desnormalizados para eficiencia)
   remitente_nombres: string;
