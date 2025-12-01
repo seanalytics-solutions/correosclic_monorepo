@@ -27,8 +27,9 @@ model Usuarios {
   tokenCreatedAt DateTime? @default(now()) @map("token_created_at")
   rol            String    @default("usuario")
 
-  profile       Profile?
-  giftedCoupons GiftedCoupon[]
+  profile            Profile?
+  giftedCoupons      GiftedCoupon[]
+  solicitudVendedors SolicitudVendedor[]
 
   @@map("usuarios")
 }
@@ -577,7 +578,7 @@ model Service {
 }
 
 model SolicitudVendedor {
-  id               Int     @id @default(autoincrement())
+  id               Int       @id @default(autoincrement())
   nombre_tienda    String
   categoria_tienda String
   telefono         String
@@ -586,7 +587,8 @@ model SolicitudVendedor {
   rfc              String
   curp             String
   img_uri          String?
-  userId           Int
+  userId           Int?
+  usuario          Usuarios? @relation(fields: [userId], references: [id])
 
   @@map("solicitud_vendedor")
 }
