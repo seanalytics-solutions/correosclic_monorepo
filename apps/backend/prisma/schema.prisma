@@ -44,6 +44,12 @@ model deletion_reason {
   @@map("deletion_reasons")
 }
 
+model categories {
+  id       Int       @id @default(autoincrement())
+  name     String    @db.VarChar(200)
+  products Product[]
+}
+
 model Profile {
   id               Int     @id @default(autoincrement())
   nombre           String  @db.VarChar(30)
@@ -77,6 +83,7 @@ model Product {
   id                  Int                  @id @default(autoincrement())
   nombre              String               @db.VarChar(60)
   descripcion         String               @db.VarChar(120)
+  categoria           String?
   altura              Float?               @db.Real
   largo               Float?               @db.Real
   ancho               Float?               @db.Real
@@ -92,6 +99,7 @@ model Product {
   sku                 String               @db.VarChar(60)
   idPerfil            Int?
   id_category         Int?
+  category            categories?          @relation(fields: [id_category], references: [id])
   sellerId            Int?
   seller              CreateSeller?        @relation(fields: [sellerId], references: [id])
   favoritoDe          Profile[]            @relation("Favoritos")

@@ -9,7 +9,6 @@ import {
   Delete,
   UseInterceptors,
   UploadedFiles,
-  Query,
   ParseIntPipe,
   HttpCode,
   HttpStatus,
