@@ -129,9 +129,9 @@ export class CrearGuiaCommandHandler
     }
 
     // // subir pdf a s3
-    // const pdfBuffer = pdfResult.getValue();
-    // const pdfKey = await this.awsRepository.subirPDF(pdfBuffer, guia.NumeroRastreo.getNumeroRastreo);
-    // console.log(`Se subio el PDF a S3 con el key: ${pdfKey}`); // TODO: eliminar, comentario de debug
+    const pdfBuffer = pdfResult.getValue();
+    const pdfKey = await this.awsRepository.subirPDF(pdfBuffer, guia.NumeroRastreo.getNumeroRastreo);
+    console.log(`Se subio el PDF a S3 con el key: ${pdfKey}`); // TODO: eliminar, comentario de debug
 
     return {
       numeroRastreo: guia.NumeroRastreo.getNumeroRastreo,
