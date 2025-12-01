@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePedidoDto } from './dto/create-pedido.dto';
-import { UpdatePedidoDto } from './dto/update-pedido.dto';
+// import { UpdatePedidoDto } from './dto/update-pedido.dto';
 
 @Injectable()
 export class PedidosService {
@@ -88,6 +88,7 @@ export class PedidosService {
           },
         },
         direccion: true,
+        factura: true,
       },
       orderBy: { fecha: 'desc' },
     });
@@ -107,6 +108,7 @@ export class PedidosService {
           },
         },
         direccion: true,
+        factura: true,
       },
       orderBy: { fecha: 'desc' },
     });
@@ -126,6 +128,7 @@ export class PedidosService {
           },
         },
         direccion: true,
+        factura: true,
       },
     });
 
