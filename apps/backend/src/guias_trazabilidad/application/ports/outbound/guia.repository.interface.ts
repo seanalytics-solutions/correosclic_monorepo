@@ -8,4 +8,5 @@ export interface GuiaRepositoryInterface {
   findByNumeroRastreo(
     numeroRastreo: NumeroDeRastreoVO,
   ): Promise<GuiaDomainEntity | null>;
+  actualizarKeyPdf(numeroRastreo: string, keyPdf: string): Promise<void>;
 }

@@ -50,7 +50,7 @@ export class GuiaRepository implements GuiaRepositoryInterface {
       if (guia.UltimoMovimiento) {
         const movimientoOrm = MovimientoMapper.toOrm(guia.UltimoMovimiento);
         movimientoOrm.id_guia = guiaOrm.id_guia;
-        
+
         const { guia: _guiaMov, ...movimientoData } = movimientoOrm;
 
         await tx.movimientoGuia.upsert({
@@ -65,7 +65,7 @@ export class GuiaRepository implements GuiaRepositoryInterface {
           guia.incidencia,
           guia.Id.getId,
         );
-        
+
         const { guia: _guiaInc, ...incidenciaData } = incidenciaOrm;
 
         await tx.incidenciaGuia.upsert({
@@ -74,6 +74,13 @@ export class GuiaRepository implements GuiaRepositoryInterface {
           create: incidenciaData,
         });
       }
+    });
+  }
+
+  async actualizarKeyPdf(numeroRastreo: string, keyPdf: string): Promise<void> {
+    await this.prisma.guia.update({
+      where: { numero_de_rastreo: numeroRastreo },
+      data: { key_pdf: keyPdf },
     });
   }
 
