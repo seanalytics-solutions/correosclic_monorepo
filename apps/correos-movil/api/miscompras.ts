@@ -48,3 +48,10 @@ export async function obtenerPedidosPorUsuario(profileId: string) {
   );
   return data;
 }
+
+export async function obtenerFactura(invoiceId: number) {
+  const { data } = await axios.get(
+    `${process.env.EXPO_PUBLIC_API_URL}/api/facturas?id=${invoiceId}`,
+  );
+  return data;
+}

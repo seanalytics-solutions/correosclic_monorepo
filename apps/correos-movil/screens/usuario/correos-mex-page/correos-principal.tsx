@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     justifyContent: "flex-start",
     alignItems: "center",
-    width: moderateScale(80),
+    width: moderateScale(84),
     marginRight: moderateScale(20),
   },
   circleContainer: {
@@ -657,6 +657,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: moderateScale(4),
     lineHeight: moderateScale(14),
+    flexShrink: 1,
+    includeFontPadding: false,
   },
   vendedorContainer: {
     flexDirection: "column",

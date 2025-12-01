@@ -55,6 +55,7 @@ import ComoEnviarAtencion from '../screens/usuario/correos-mex-page/atencion-cli
 import Contacto from '../screens/usuario/correos-mex-page/atencion-cliente/Contacto';
 import PreguntasFrecuentes from '../screens/usuario/correos-mex-page/atencion-cliente/PreguntasFrecuentes';
 import HomeTabsSeller from '../components/Tabs/HomeTabsVendedor';
+import DetallesFactura from "../screens/facturas/detalles_facture"
 
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -116,6 +117,7 @@ export default function AppNavigator() {
             <Stack.Screen name="ComoEnviarAtencion" component={ComoEnviarAtencion} />
             <Stack.Screen name="Contacto" component={Contacto} />
             <Stack.Screen name="PreguntasFrecuentes" component={PreguntasFrecuentes} />
+            <Stack.Screen name="DetallesFactura" component={DetallesFactura} />
             <Stack.Screen name="TabsVendedor" component={HomeTabsSeller} options={{ headerShown: false }} />
         </Stack.Navigator>
     );

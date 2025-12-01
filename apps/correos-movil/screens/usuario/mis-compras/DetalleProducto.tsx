@@ -23,8 +23,16 @@ export default function DetalleProducto() {
   const navigation = useNavigation();
   const route = useRoute<any>();
 
-  const { pedidoId, fecha, totalPedido, producto, cantidad, direccion, pago } =
-    route.params || {};
+  const {
+    pedidoId,
+    fecha,
+    totalPedido,
+    producto,
+    cantidad,
+    direccion,
+    pago,
+    invoiceId,
+  } = route.params || {};
 
   const fechaStr = fecha
     ? new Date(fecha).toLocaleDateString("es-MX", {
@@ -101,14 +109,18 @@ export default function DetalleProducto() {
             </View>
           </View>
 
-          {["Comprar nuevamente", "Ver detalles de la factura"].map(
-            (text, idx) => (
-              <TouchableOpacity key={idx} style={styles.actionButton}>
-                <Text style={styles.actionText}>{text}</Text>
-                <Ionicons name="chevron-forward" size={20} color="#555" />
-              </TouchableOpacity>
-            ),
-          )}
+          {["Ver detalles de la factura"].map((text, idx) => (
+            <TouchableOpacity
+              key={idx}
+              style={styles.actionButton}
+              onPress={() =>
+                navigation.navigate("DetallesFactura", { invoiceId })
+              }
+            >
+              <Text style={styles.actionText}>{text}</Text>
+              <Ionicons name="chevron-forward" size={20} color="#555" />
+            </TouchableOpacity>
+          ))}
         </View>
 
         {/* Método de pago (opcional si lo mandas) */}
