@@ -27,9 +27,7 @@ model Usuarios {
   tokenCreatedAt DateTime? @default(now()) @map("token_created_at")
   rol            String    @default("usuario")
 
-  profileId Int? @unique
-
-  profile       Profile?       @relation(fields: [profileId], references: [id])
+  profile       Profile?
   giftedCoupons GiftedCoupon[]
 
   @@map("usuarios")
@@ -59,7 +57,8 @@ model Profile {
   imagen           String  @default("https://res.cloudinary.com/dgpd2ljyh/image/upload/v1748920792/default_nlbjlp.jpg")
   stripeCustomerId String?
 
-  Usuarios           Usuarios?
+  usuarioId          Int?      @unique @map("usuario_id")
+  Usuarios           Usuarios? @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
   productosFavoritos Product[] @relation("Favoritos")
 
   facturas        Factura[]
