@@ -9,4 +9,3 @@ import { PrismaModule } from 'src/prisma/prisma.module';
   providers: [CarritoService],
 })
 export class CarritoModule {}
-

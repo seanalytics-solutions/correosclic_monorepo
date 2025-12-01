@@ -269,14 +269,17 @@ export class ProductsService {
   async findSome(): Promise<any[]> {
     const products = await this.prisma.product.findMany({
       where: { estado: true },
-      include: { images: true },
+      include: {
+        images: true,
+        category: true, // Incluir la categoría
+      },
     });
 
     return products.map((p) => ({
       id: p.id,
       nombre: p.nombre,
       precio: p.precio.toNumber(),
-      id_category: p.id_category,
+      categoria: p.category?.name ?? null, // Retornar el nombre de la categoría
       estado: p.estado,
       image: p.images?.length ? p.images[0] : null,
     }));
