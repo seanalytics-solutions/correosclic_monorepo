@@ -3,7 +3,6 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   ParseIntPipe,
@@ -18,7 +17,6 @@ import {
 
 import { PedidosService } from './pedidos.service';
 import { CreatePedidoDto } from './dto/create-pedido.dto';
-import { UpdatePedidoDto } from './dto/update-pedido.dto';
 import { PedidoResponseDto } from './dto/pedido-response.dto';
 
 @ApiTags('Pedidos') // Agrupa las rutas en la sección "Pedidos"
