@@ -103,7 +103,7 @@ model Product {
   marca       String             @db.VarChar(60)
   slug        String             @db.VarChar(120)
   vendedor    String             @db.VarChar(80)
-  real_state  ProductEstadoEnum? @default(activo) @map("real_state")
+  real_status ProductEstadoEnum? @default(activo) @map("real_status")
   estado      Boolean            @default(true)
   vendidos    Int                @default(0)
   sku         String             @db.VarChar(60)
