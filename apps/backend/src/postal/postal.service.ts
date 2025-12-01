@@ -12,10 +12,10 @@ export class PostalService {
 
   private loadData() {
     // Es así para el deploy en Vercel
-    // const filePath = path.resolve(__dirname, '../codigos_postales.txt');
+    const filePath = path.resolve(__dirname, '../codigos_postales.txt');
 
     //Así va a ser para trabajar en esta en local
-    const filePath = path.resolve(__dirname, '../../codigos_postales.txt');
+    // const filePath = path.resolve(__dirname, '../../codigos_postales.txt');
 
     const content = fs.readFileSync(filePath, 'utf8');
     const lines = content.split('\n').filter((line) => line.trim() !== '');
