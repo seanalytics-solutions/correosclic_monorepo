@@ -17,17 +17,20 @@ model User {
 }
 
 model Usuarios {
-  id             Int            @id @default(autoincrement())
+  id             Int       @id @default(autoincrement())
   nombre         String?
   apellido       String?
-  correo         String         @unique
-  password       String         @map("contrasena")
-  confirmado     Boolean        @default(false)
+  correo         String    @unique
+  password       String    @map("contrasena")
+  confirmado     Boolean   @default(false)
   token          String?
-  tokenCreatedAt DateTime?      @default(now()) @map("token_created_at")
-  rol            String         @default("usuario")
-  profile        Profile?
-  giftedCoupons  GiftedCoupon[]
+  tokenCreatedAt DateTime? @default(now()) @map("token_created_at")
+  rol            String    @default("usuario")
+
+  profileId Int? @unique
+
+  profile       Profile?       @relation(fields: [profileId], references: [id])
+  giftedCoupons GiftedCoupon[]
 
   @@map("usuarios")
 }
@@ -56,8 +59,7 @@ model Profile {
   imagen           String  @default("https://res.cloudinary.com/dgpd2ljyh/image/upload/v1748920792/default_nlbjlp.jpg")
   stripeCustomerId String?
 
-  usuarioId          Int?      @unique
-  usuario            Usuarios? @relation(fields: [usuarioId], references: [id])
+  Usuarios           Usuarios?
   productosFavoritos Product[] @relation("Favoritos")
 
   facturas        Factura[]
