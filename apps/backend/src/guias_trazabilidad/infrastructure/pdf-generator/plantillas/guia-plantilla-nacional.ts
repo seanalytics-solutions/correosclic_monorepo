@@ -12,6 +12,16 @@ export const plantillaGuiaNacional = async (
     '@react-pdf/renderer'
   );
 
+  const ahora = new Date();
+  const fechaFormateada = ahora.toLocaleString('es-MX', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+
   // ... (El resto del código sigue igual)
   const styles = StyleSheet.create({
     page: {
@@ -298,7 +308,7 @@ export const plantillaGuiaNacional = async (
               createElement(
                 View,
                 { style: styles.infoField },
-                createElement(Text, {}, 'Fecha: ___________'),
+                createElement(Text, {}, `Fecha: ${fechaFormateada}`),
               ),
               createElement(
                 View,
