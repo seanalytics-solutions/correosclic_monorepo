@@ -11,7 +11,7 @@ export class PostalService {
   }
 
   private loadData() {
-    const filePath = path.resolve(__dirname, '../../codigos_postales.txt');
+    const filePath = path.resolve(__dirname, '../codigos_postales.txt');
     const content = fs.readFileSync(filePath, 'utf8');
     const lines = content.split('\n').filter((line) => line.trim() !== '');
     // La primera línea es el header, la saltamos
