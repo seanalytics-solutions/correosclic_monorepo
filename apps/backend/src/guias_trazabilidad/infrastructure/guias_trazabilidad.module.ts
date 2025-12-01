@@ -35,10 +35,7 @@ import { GOOGLE_GEOCODE_REPOSITORY_INTERFACE } from '../application/ports/outbou
 import { GoogleGeocodeRepository } from './google-geocode/google-geocode.repository';
 
 @Module({
-  imports: [
-    CqrsModule,
-    PrismaModule,
-  ],
+  imports: [CqrsModule, PrismaModule],
   controllers: [GuiaController],
   providers: [
     // Command Handlers (Escritura)
