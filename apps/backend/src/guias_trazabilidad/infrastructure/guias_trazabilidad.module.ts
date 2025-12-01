@@ -33,9 +33,10 @@ import { AWSRepository } from './s3/aws.repository';
 import { AWSProvider } from './s3/aws.provider';
 import { GOOGLE_GEOCODE_REPOSITORY_INTERFACE } from '../application/ports/outbound/geocode.repository.interface';
 import { GoogleGeocodeRepository } from './google-geocode/google-geocode.repository';
+import { CloudflareModule } from '../../cloudflare/cloudflare.module'; // ← Agregar
 
 @Module({
-  imports: [CqrsModule, PrismaModule],
+  imports: [CqrsModule, PrismaModule, CloudflareModule],
   controllers: [GuiaController],
   providers: [
     // Command Handlers (Escritura)

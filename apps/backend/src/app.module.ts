@@ -45,6 +45,7 @@ import { CouponModule } from './coupons/coupons.module';
 import { ComplaintsModule } from './complaints/complaints.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { CreateSellerModule } from './create_seller/create-seller.module';
+import { CloudflareModule } from './cloudflare/cloudflare.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { CreateSellerModule } from './create_seller/create-seller.module';
     ScheduleModule.forRoot(),
     PrismaModule,
     CreateAccountModule,
+    CloudflareModule,
     RoutesModule,
     ProfileModule,
     PagosModule,

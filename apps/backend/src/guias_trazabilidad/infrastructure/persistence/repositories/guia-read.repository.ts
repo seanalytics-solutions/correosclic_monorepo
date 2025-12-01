@@ -83,8 +83,11 @@ export class GuiaReadRepository implements GuiaReadRepositoryInterface {
         gi.peso_kg, gi.dimensiones, gi.fecha_creacion, gi.fecha_entrega_estimada;
     `;
 
-    const result = (await this.prisma.$queryRawUnsafe(query, numeroRastreo)) as any[];
-    return result.length > 0 ? result[0] : null;
+    const result = await this.prisma.$queryRawUnsafe<TrazabilidadReadModel[]>(
+      query,
+      numeroRastreo,
+    );
+    return Array.isArray(result) && result.length > 0 ? result[0] : null;
   }
 
   async findAllGuias(): Promise<GuiaListReadModel[]> {
@@ -95,6 +98,7 @@ export class GuiaReadRepository implements GuiaReadRepositoryInterface {
         g.fecha_creacion,
         g.valor_declarado,
         g.peso_kg,
+        g.key_pdf,
         rem.nombres || ' ' || rem.apellidos as remitente,
         dest.nombres || ' ' || dest.apellidos as destinatario,
         dest.localidad as ciudad_destino,
@@ -116,7 +120,7 @@ export class GuiaReadRepository implements GuiaReadRepositoryInterface {
       ORDER BY g.fecha_creacion DESC;
     `;
 
-    return (await this.prisma.$queryRawUnsafe(query)) as GuiaListReadModel[];
+    return await this.prisma.$queryRawUnsafe(query);
   }
 
   async findAllIncidencias(): Promise<IncidenciaReadModel[]> {
@@ -137,7 +141,7 @@ export class GuiaReadRepository implements GuiaReadRepositoryInterface {
       ORDER BY i.fecha_incidencia DESC;
     `;
 
-    return (await this.prisma.$queryRawUnsafe(query)) as IncidenciaReadModel[];
+    return await this.prisma.$queryRawUnsafe(query);
   }
 
   async findAllContactos(): Promise<ContactoReadModel[]> {
@@ -165,6 +169,6 @@ export class GuiaReadRepository implements GuiaReadRepositoryInterface {
       ORDER BY nombres, apellidos;
     `;
 
-    return (await this.prisma.$queryRawUnsafe(query)) as ContactoReadModel[];
+    return await this.prisma.$queryRawUnsafe(query);
   }
 }
