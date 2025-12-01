@@ -6,7 +6,7 @@ import {
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 import {
   CreateShippingRateDto,
@@ -50,9 +50,7 @@ export class ShippingRateService {
     const ivaPercent = tarifa.ivaPercent || 0;
 
     const adicional =
-      excedente > 0 && additionalPerKg
-        ? excedente * additionalPerKg
-        : 0;
+      excedente > 0 && additionalPerKg ? excedente * additionalPerKg : 0;
     const subtotal = basePrice + adicional;
     const iva = subtotal * (ivaPercent / 100);
     const total = subtotal + iva;
@@ -72,18 +70,20 @@ export class ShippingRateService {
     createShippingRateDto: CreateShippingRateDto,
   ): Promise<ShippingRateResponseDto> {
     const { zoneId, serviceId, ...rest } = createShippingRateDto as any;
-    
+
     const data: any = { ...rest };
     if ((createShippingRateDto as any).zone) {
-        data.zone = { connect: { id: (createShippingRateDto as any).zone.id } };
+      data.zone = { connect: { id: (createShippingRateDto as any).zone.id } };
     } else if (zoneId) {
-        data.zone = { connect: { id: zoneId } };
+      data.zone = { connect: { id: zoneId } };
     }
 
     if ((createShippingRateDto as any).service) {
-        data.service = { connect: { id: (createShippingRateDto as any).service.id } };
+      data.service = {
+        connect: { id: (createShippingRateDto as any).service.id },
+      };
     } else if (serviceId) {
-        data.service = { connect: { id: serviceId } };
+      data.service = { connect: { id: serviceId } };
     }
 
     const savedRate = await this.prisma.shippingRate.create({
@@ -98,7 +98,7 @@ export class ShippingRateService {
   ): Promise<ShippingRateResponseDto[]> {
     const results: ShippingRateResponseDto[] = [];
     for (const dto of createShippingRateDtos) {
-        results.push(await this.create(dto));
+      results.push(await this.create(dto));
     }
     return results;
   }
@@ -138,15 +138,17 @@ export class ShippingRateService {
     const data: any = { ...rest };
 
     if ((updateShippingRateDto as any).zone) {
-        data.zone = { connect: { id: (updateShippingRateDto as any).zone.id } };
+      data.zone = { connect: { id: (updateShippingRateDto as any).zone.id } };
     } else if (zoneId) {
-        data.zone = { connect: { id: zoneId } };
+      data.zone = { connect: { id: zoneId } };
     }
 
     if ((updateShippingRateDto as any).service) {
-        data.service = { connect: { id: (updateShippingRateDto as any).service.id } };
+      data.service = {
+        connect: { id: (updateShippingRateDto as any).service.id },
+      };
     } else if (serviceId) {
-        data.service = { connect: { id: serviceId } };
+      data.service = { connect: { id: serviceId } };
     }
 
     const updatedRate = await this.prisma.shippingRate.update({
@@ -159,9 +161,9 @@ export class ShippingRateService {
 
   async remove(id: number): Promise<void> {
     try {
-        await this.prisma.shippingRate.delete({ where: { id } });
+      await this.prisma.shippingRate.delete({ where: { id } });
     } catch (error) {
-        throw new NotFoundException(`Shipping rate with ID ${id} not found`);
+      throw new NotFoundException(`Shipping rate with ID ${id} not found`);
     }
   }
 
@@ -198,11 +200,7 @@ export class ShippingRateService {
     return rate;
   }
 
-  async findTarifa(
-    zonaId: number,
-    servicioId: number,
-    peso: number,
-  ) {
+  async findTarifa(zonaId: number, servicioId: number, peso: number) {
     return await this.prisma.shippingRate.findFirst({
       where: {
         zoneId: zonaId,

@@ -4,7 +4,7 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateUnidadDto } from './dto/create-unidad.dto';
 import { AssignConductorDto } from './dto/assign-conductor.dto';
 import { AssignZonaDto } from './dto/assign-zona.dto';
@@ -411,4 +411,3 @@ export class UnidadesService {
     return unidad;
   }
 }
-

@@ -3,7 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateEnvioDto } from './dto/CrearEnvioDto.dto';
 
 export enum EstadoEnvio {
@@ -58,7 +58,7 @@ export class EnviosService {
     const fechaEntrega = new Date(fechaAsignacion);
     if (fechaAsignacion > horaLimite)
       fechaEntrega.setDate(fechaEntrega.getDate() + 1);
-    
+
     fechaEntrega.setHours(0, 0, 0, 0);
 
     const envioExistente = await this.prisma.envio.findFirst({
@@ -133,7 +133,9 @@ export class EnviosService {
         lat: contacto?.lat,
         lng: contacto?.lng,
         referencia: contacto?.referencia,
-        destinatario: contacto ? `${contacto.nombres} ${contacto.apellidos}` : null,
+        destinatario: contacto
+          ? `${contacto.nombres} ${contacto.apellidos}`
+          : null,
       };
     });
   }

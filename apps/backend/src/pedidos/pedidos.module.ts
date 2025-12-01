@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PedidosController } from './pedidos.controller';
 import { PedidosService } from './pedidos.service';
-import { PrismaModule } from 'src/prisma/prisma.module';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [PrismaModule],
@@ -9,4 +9,3 @@ import { PrismaModule } from 'src/prisma/prisma.module';
   providers: [PedidosService],
 })
 export class PedidosModule {}
-

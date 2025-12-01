@@ -3,7 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateOficinaDto } from './dto/create-oficina.dto';
 import { UpdateOficinaDto } from './dto/update-oficina.dto';
 import { AgregarClaveZonaDto } from './dto/agregar-clave-zona.dto';
@@ -163,4 +163,3 @@ export class OficinasService {
     });
   }
 }
-
