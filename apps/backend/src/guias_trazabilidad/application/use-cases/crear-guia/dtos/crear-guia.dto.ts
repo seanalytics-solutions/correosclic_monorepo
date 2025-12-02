@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -141,6 +142,14 @@ class ContactoDto {
 }
 
 export class CrearGuiaDto {
+  @ApiProperty({
+    example: 1,
+    description: 'El ID del perfil del usuario que crea la guía',
+    required: false,
+  })
+  @IsInt({ message: 'El campo profileId debe ser un número entero' })
+  @IsOptional()
+  profileId?: number;
   @ApiProperty({
     example: {
       nombres: 'Juan Carlos',

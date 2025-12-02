@@ -60,6 +60,7 @@ export class GuiaController {
       crearGuiaDto.peso,
       crearGuiaDto.valorDeclarado,
       crearGuiaDto.tipoServicio,
+      crearGuiaDto.profileId,
     );
 
     const result = await this.commandBus.execute(command);
@@ -158,7 +159,6 @@ export class GuiaController {
       status: 'ok',
     };
   }
-
   @Get('/incidencias')
   @ApiOperation({ summary: 'Lista todas las incidencias registradas' })
   @ApiResponse({

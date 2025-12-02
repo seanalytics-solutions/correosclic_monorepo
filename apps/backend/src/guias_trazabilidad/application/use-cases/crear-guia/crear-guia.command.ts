@@ -6,6 +6,7 @@ export class CrearGuiaCommand {
     public readonly peso: number,
     public readonly valorDeclarado: number,
     public readonly tipoServicio: TipoServicio,
+    public readonly profileId?: number,
   ) {}
 }
 
