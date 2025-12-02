@@ -1,19 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
-
-@Entity('proveedores')
 export class Proveedor {
-    @PrimaryGeneratedColumn()
-    id: number;
+  id: number;
 
-    @Column()
-    proveedor: string;
+  proveedor: string;
 
-    @Column()
-    sub: string;
+  sub: string;
 
-    @Column()
-    id_usuario: number;
+  id_usuario: number;
 
-    @Column({ nullable: true })
-    correo_asociado: string;
+  correo_asociado: string;
 }

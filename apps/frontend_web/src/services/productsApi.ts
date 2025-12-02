@@ -1,283 +1,26 @@
-// services/productsApi.ts
-import { 
-  BackendProduct, 
-  FrontendProduct, 
-  BackendCreateProductDto 
+// src/services/productsApi.ts - CON DEBUG INTEGRADO
+import api from '../lib/api';
+import {
+  FrontendProduct,
+  BackendCreateProductDto,
+  BackendProductEntity,
 } from '@/schemas/products';
-const bolsaImg = '/placeholder-bolsos.png';
-const accesoriosImg = '/placeholder-accesorios.png';
-const zapatosImg = '/placeholder-zapatos.png';
-const tenisImg = '/placeholder-tenis.png';
-const shortsImg = '/placeholder-shorts.png';
-const vestidosImg = '/placeholder-vestidos.png';
-const chamarrasImg = '/placeholder-chamarras.png';
-const pantalonesImg = '/placeholder-pantalones.png';
-const blusasImg = '/placeholder-blusas.png';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-const DEFAULT_PLACEHOLDER_IMAGE = 'https://via.placeholder.com/300x300/cccccc/969696?text=Imagen+No+Disponible';
+import {
+  mapBackendToFrontend,
+  mapFrontendToUpdateDto,
+  validateBackendProductsArray,
+} from '../utils/mappers';
+import { 
+  debugProductData, 
+  testSingleProductMapping,
+  debugAndCleanProducts 
+} from '../utils/debugProductData';
 
 class ProductsApiService {
-  private baseUrl = `${API_BASE_URL}/api/products`;
-  private cache: FrontendProduct[] | null = null;
-  private lastFetch: number = 0;
-  private CACHE_DURATION = 30000; //cache
+  private readonly baseUrl = '/products';
 
-  private validateImageUrl(url: string | null | undefined): string {
-    // Si no hay URL, usar placeholder
-    if (!url || url.trim() === '' || url === '""') {
-      return DEFAULT_PLACEHOLDER_IMAGE;
-    }
 
-    const cleanUrl = url.trim();
-
-    return cleanUrl;
-  }
-
-  /**
-   * Procesa el array de productos
-   */
-  private processProducts(data: any[]): FrontendProduct[] {
-    if (!Array.isArray(data)) {
-      console.warn(' No llego array:', typeof data);
-      return [];
-    }
-
-    const validProducts = data
-      .filter((product: any) => {
-        const isValid = this.isValidProduct(product);
-        if (!isValid) {
-          console.warn('Pasando produc inva:', product?.id);
-        }
-        return isValid;
-      })
-      .map((product: any) => this.mapBackendToFrontend(product))
-      .filter((product: FrontendProduct) => {
-        const hasValidImage = product.ProductImageUrl && product.ProductImageUrl !== '';
-        if (!hasValidImage) {
-          console.warn('Producto trae imagen dañada:', product.ProductID, product.ProductName);
-        }
-        return hasValidImage;
-      });
-
-    return validProducts;
-  }
-
-  private mapBackendToFrontend(backendProduct: any): FrontendProduct {
-    // Procesar colores
-    const colors = backendProduct.color 
-      ? backendProduct.color.split(',').map((c: string) => c.trim()).filter(Boolean)
-      : [];
-
-    let imageUrl = DEFAULT_PLACEHOLDER_IMAGE;
-    
-    if (backendProduct.images && Array.isArray(backendProduct.images) && backendProduct.images.length > 0) {
-      // Tomar la primera imagen del array
-      imageUrl = this.validateImageUrl(backendProduct.images[0]?.url);
-    } else if (backendProduct.imagen) {
-      // Fallback a imagen individual
-      imageUrl = this.validateImageUrl(backendProduct.imagen);
-    }
-
-    return {
-      ProductID: backendProduct.id,
-      ProductName: backendProduct.nombre,
-      ProductDescription: backendProduct.descripcion,
-      productPrice: backendProduct.precio,
-      ProductImageUrl: imageUrl,
-      ProductCategory: backendProduct.categoria,
-      productStockQuantity: backendProduct.inventario,
-      ProductColors: colors,
-      ProductBrand: backendProduct.marca || 'Sin marca',
-      ProductWeight: backendProduct.peso,
-      ProductDimensions: backendProduct.dimensiones,
-      isActive: backendProduct.estado !== false,
-      createdAt: backendProduct.createdAt ? new Date(backendProduct.createdAt) : new Date(),
-      updatedAt: backendProduct.updatedAt ? new Date(backendProduct.updatedAt) : new Date(),
-    };
-  }
-
-  private isValidProduct(product: any): boolean {
-    return (
-      product &&
-      typeof product === 'object' &&
-      product.id &&
-      product.nombre &&
-      typeof product.precio === 'number'
-    );
-  }
-
-  /**
-   * Obtener todos los productos CON CACHE
-   */
-  async getAllProducts(): Promise<FrontendProduct[]> {
-    if (this.cache && Date.now() - this.lastFetch < this.CACHE_DURATION) {
-      console.log(' Using cached products');
-      return this.cache;
-    }
-
-    try {
-      console.log(' Fetching fresh products from:', this.baseUrl);
-      
-      const response = await fetch(this.baseUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        cache: 'force-cache',
-      });
-
-      if (!response.ok) {
-        console.error(` HTTP Error: ${response.status} ${response.statusText}`);
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      console.log(`📦 Received ${Array.isArray(data) ? data.length : 'non-array'} products`);
-      
-      let validProducts = this.processProducts(data);
-      console.log(`Mapped ${validProducts.length} valid products`);
-
-      const categoryMapping: Record<string, string> = {
-        'Productos destacados': bolsaImg, 
-        'Ropa, moda y calzado': vestidosImg, 
-        'FONART': chamarrasImg,
-        'Calzado': tenisImg,
-        'Ropa': pantalonesImg,
-        'Accesorios': accesoriosImg, // Agregado si esta categoría existe
-        // Asegúrate de que los nombres de categoría sean EXACTOS
-      };
-
-      const productsWithLocalImages = validProducts.map(p => {
-    const localImagePath = p.ProductCategory && categoryMapping[p.ProductCategory];
-    
-    if (localImagePath) {
-        return {
-            ...p,
-          ProductImageUrl: localImagePath,
-        };
-      }
-      return p; 
-    });
-
-      // Reemplazamos la lista de la API con la lista modificada
-      validProducts = productsWithLocalImages;
-
-      // Guardar en cache
-      this.cache = validProducts;
-      this.lastFetch = Date.now();
-
-      return validProducts;
-
-    } catch (error) {
-      console.error(' Error fetching products:', error);
-      // Devolver cache aunque sea viejo si hay error
-      return this.cache || [];
-    }
-  }
-
-  /**
-   * Limpiar cache (útil para testing)
-   */
-  clearCache(): void {
-    this.cache = null;
-    this.lastFetch = 0;
-    console.log('🗑️ Cache cleared');
-  }
-
-  /**
-   * Obtener producto por ID
-   */
-  async getProductById(id: number): Promise<FrontendProduct | null> {
-    try {
-      console.log(`🔄 Fetching product ${id} from: ${this.baseUrl}/${id}`);
-      
-      const response = await fetch(`${this.baseUrl}/${id}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          console.warn(`⚠️ Product ${id} not found`);
-          return null;
-        }
-        throw new Error(`Error ${response.status}: Producto no encontrado`);
-      }
-
-      const data = await response.json();
-      
-      if (!this.isValidProduct(data)) {
-        console.warn('⚠️ Invalid product data received:', data);
-        return null;
-      }
-
-      const mappedProduct = this.mapBackendToFrontend(data);
-      console.log(`✅ Successfully mapped product: ${mappedProduct.ProductName}`);
-      return mappedProduct;
-
-    } catch (error) {
-      console.error(`❌ Error fetching product ${id}:`, error);
-      return null;
-    }
-  }
-
-  /**
-   * Obtener productos por categoría
-   */
-  async getProductsByCategory(category: string): Promise<FrontendProduct[]> {
-    try {
-      console.log(`🔄 Fetching products for category: ${category}`);
-      
-      // Primero intentar con cache
-      const allProducts = await this.getAllProducts();
-      
-      // Filtrar por categoría
-      const categoryProducts = allProducts.filter(product => 
-        product.ProductCategory?.toLowerCase().includes(category.toLowerCase())
-      );
-
-      console.log(`✅ Found ${categoryProducts.length} products for category: ${category}`);
-      return categoryProducts;
-
-    } catch (error) {
-      console.error(`❌ Error fetching products for category ${category}:`, error);
-      return [];
-    }
-  }
-
-  /**
-   * Buscar productos
-   */
-  async searchProducts(query: string): Promise<FrontendProduct[]> {
-    try {
-      if (!query.trim()) {
-        return [];
-      }
-
-      console.log(`🔍 Searching products for: "${query}"`);
-      
-      // Usar cache para búsqueda
-      const allProducts = await this.getAllProducts();
-      
-      const searchResults = allProducts.filter(product =>
-        product.ProductName.toLowerCase().includes(query.toLowerCase()) ||
-        product.ProductDescription.toLowerCase().includes(query.toLowerCase()) ||
-        product.ProductCategory?.toLowerCase().includes(query.toLowerCase())
-      );
-
-      console.log(`✅ Found ${searchResults.length} products for search: "${query}"`);
-      return searchResults;
-
-    } catch (error) {
-      console.error(`❌ Error searching products for "${query}":`, error);
-      return [];
-    }
-  }
-
-  /**
+    /**
    * Obtener productos destacados
    */
   async getFeaturedProducts(limit: number = 8): Promise<FrontendProduct[]> {
@@ -301,154 +44,339 @@ class ProductsApiService {
   }
 
   /**
-   * Obtener productos recientes
+   * Obtiene todos los productos del backend - CON DEBUG MEJORADO
    */
-  async getRecentProducts(limit: number = 6): Promise<FrontendProduct[]> {
+  async getAllProducts(): Promise<FrontendProduct[]> {
     try {
+      console.log('🚀 === INICIANDO OBTENCIÓN DE PRODUCTOS ===');
+      console.log('🔍 Haciendo petición a:', this.baseUrl);
+      
+      const response = await api.get<BackendProductEntity[]>(this.baseUrl);
+      
+      console.log('📡 Respuesta del servidor recibida:');
+      console.log(`   Status: ${response.status}`);
+      console.log(`   Cantidad de productos: ${response.data?.length || 0}`);
+      
+      // 🔍 DEBUG DETALLADO - INSPECCIONAR ESTRUCTURA REAL
+      if (response.data && Array.isArray(response.data)) {
+        console.log('🔍 === INICIANDO INSPECCIÓN DETALLADA ===');
+        debugProductData(response.data);
+        
+        // 🧪 PROBAR MAPEO DEL PRIMER PRODUCTO
+        if (response.data.length > 0) {
+          console.log('🧪 === PROBANDO MAPEO DEL PRIMER PRODUCTO ===');
+          console.log('Datos originales del primer producto:');
+          console.log(JSON.stringify(response.data[0], null, 2));
+          
+          try {
+            const testMapping = mapBackendToFrontend(response.data[0]);
+            console.log('✅ Mapeo individual exitoso para el primer producto');
+          } catch (error) {
+            console.error('❌ Error en mapeo individual del primer producto:', error);
+          }
+        }
+        
+        console.log('🔄 === INICIANDO VALIDACIÓN DE TODOS LOS PRODUCTOS ===');
+        const validatedProducts = validateBackendProductsArray(response.data);
+        
+        console.log('🎉 === PROCESO COMPLETADO ===');
+        console.log(`✅ Productos procesados exitosamente: ${validatedProducts.length}`);
+        console.log(`📊 Tasa de éxito: ${((validatedProducts.length / response.data.length) * 100).toFixed(1)}%`);
+        
+        return validatedProducts;
+      } else {
+        console.warn('⚠️ La respuesta no contiene un array válido de productos');
+        console.log('Datos recibidos:', response.data);
+        return [];
+      }
+      
+    } catch (error) {
+      console.error('❌ === ERROR EN getAllProducts ===');
+      console.error('Error completo:', error);
+      
+      // Análisis detallado del error
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as any;
+        console.error('📡 Detalles del error de red:');
+        console.error(`   Status: ${axiosError.response?.status}`);
+        console.error(`   StatusText: ${axiosError.response?.statusText}`);
+        console.error(`   URL: ${axiosError.config?.url}`);
+        console.error(`   Method: ${axiosError.config?.method}`);
+        console.error(`   Response Data:`, axiosError.response?.data);
+      }
+      
+      throw new Error('Error al obtener productos de la API');
+    }
+  }
+
+  /**
+   * Obtiene un producto por ID - CON DEBUG MEJORADO
+   */
+  async getProductById(id: number): Promise<FrontendProduct> {
+    try {
+      console.log(`🚀 === OBTENIENDO PRODUCTO ID: ${id} ===`);
+      
+      const response = await api.get<BackendProductEntity>(`${this.baseUrl}/${id}`);
+      
+      console.log('📡 Respuesta para producto individual:');
+      console.log(`   Status: ${response.status}`);
+      console.log('   Datos recibidos:', JSON.stringify(response.data, null, 2));
+      
+      // 🔍 DEBUG PARA PRODUCTO INDIVIDUAL
+      console.log('🔍 === ANALIZANDO PRODUCTO INDIVIDUAL ===');
+      if (response.data && typeof response.data === 'object') {
+        const product = response.data as any;
+        console.log('📊 Tipos de datos del producto:');
+        Object.entries(product).forEach(([key, value]) => {
+          console.log(`  ${key}: ${typeof value} = ${JSON.stringify(value)}`);
+        });
+      }
+      
+      // 🧪 PROBAR MAPEO
+      console.log('🧪 === PROBANDO MAPEO INDIVIDUAL ===');
+      const mappedProduct = mapBackendToFrontend(response.data);
+      
+      console.log('✅ Producto mapeado exitosamente');
+      console.log('🎉 Resultado final:', mappedProduct);
+      
+      return mappedProduct;
+      
+    } catch (error) {
+      console.error(`❌ === ERROR OBTENIENDO PRODUCTO ${id} ===`);
+      console.error('Error completo:', error);
+      
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as any;
+        console.error('📡 Detalles del error:');
+        console.error(`   Status: ${axiosError.response?.status}`);
+        console.error(`   Data:`, axiosError.response?.data);
+      }
+      
+      throw new Error(`Error al obtener producto con ID ${id}`);
+    }
+  }
+  async getProductsByCategory(category: string): Promise<FrontendProduct[]> {
+    try {
+      console.log(`🔄 Fetching products for category: ${category}`);
+      
+      // Primero intentar con cache
       const allProducts = await this.getAllProducts();
       
-      // Ordenar por fecha de creación (más recientes primero)
-      const recentProducts = allProducts
-        .sort((a, b) => {
-          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return dateB - dateA;
-        })
-        .slice(0, limit);
+      // Filtrar por categoría
+      const categoryProducts = allProducts.filter(product => 
+        product.ProductCategory?.toLowerCase().includes(category.toLowerCase())
+      );
 
-      console.log(`🆕 Found ${recentProducts.length} recent products`);
-      return recentProducts;
+      console.log(`✅ Found ${categoryProducts.length} products for category: ${category}`);
+      return categoryProducts;
 
     } catch (error) {
-      console.error('❌ Error fetching recent products:', error);
+      console.error(`❌ Error fetching products for category ${category}:`, error);
       return [];
     }
   }
-
   /**
-   * Crear nuevo producto (para vendedores)
+   * Crea un producto. Solo envía JSON; la imagen se sube aparte.
    */
-  async createProduct(productData: BackendCreateProductDto): Promise<FrontendProduct | null> {
+  async createProduct(productData: BackendCreateProductDto): Promise<FrontendProduct> {
     try {
-      console.log('🆕 Creating new product:', productData);
+      console.log('🚀 === CREANDO PRODUCTO ===');
+      console.log('📤 Datos a enviar:', JSON.stringify(productData, null, 2));
       
-      const response = await fetch(this.baseUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(productData),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`❌ Create product error: ${response.status}`, errorText);
-        throw new Error(`Error ${response.status}: No se pudo crear el producto`);
-      }
-
-      const data = await response.json();
+      const response = await api.post<BackendProductEntity>(
+        this.baseUrl,
+        productData,
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
       
-      if (!this.isValidProduct(data)) {
-        console.warn('⚠️ Invalid product data after creation:', data);
-        return null;
-      }
-
-      // Limpiar cache después de crear producto
-      this.clearCache();
-
-      const mappedProduct = this.mapBackendToFrontend(data);
-      console.log(`✅ Product created successfully: ${mappedProduct.ProductName}`);
+      console.log('📡 Respuesta del servidor al crear:');
+      console.log(`   Status: ${response.status}`);
+      console.log('   Producto creado:', JSON.stringify(response.data, null, 2));
+      
+      // 🧪 MAPEAR RESPUESTA
+      const mappedProduct = mapBackendToFrontend(response.data);
+      console.log('✅ Producto creado y mapeado exitosamente');
+      
       return mappedProduct;
-
-    } catch (error) {
-      console.error('❌ Error creating product:', error);
-      throw new Error('No se pudo crear el producto');
-    }
-  }
-
-  /**
-   * Health check del servicio
-   */
-  async healthCheck(): Promise<{ status: boolean; message: string }> {
-    try {
-      const response = await fetch(this.baseUrl, {
-        method: 'HEAD',
-        cache: 'no-store',
-      });
       
-      return {
-        status: response.ok,
-        message: response.ok ? 'API conectada correctamente' : `Error: ${response.status}`
-      };
     } catch (error) {
-      return {
-        status: false,
-        message: `Error de conexión: ${error instanceof Error ? error.message : 'Unknown error'}`
-      };
-    }
-  }
-
-  /**
-   * Obtener estadísticas del servicio
-   */
-  async getServiceStats(): Promise<{ totalProducts: number; categories: string[] }> {
-    try {
-      const products = await this.getAllProducts();
-      const categories = [...new Set(products.map(p => p.ProductCategory).filter(Boolean))] as string[];
+      console.error('❌ === ERROR CREANDO PRODUCTO ===');
+      console.error('Error completo:', error);
       
-      return {
-        totalProducts: products.length,
-        categories
-      };
-    } catch (error) {
-      console.error('❌ Error getting service stats:', error);
-      return { totalProducts: 0, categories: [] };
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as any;
+        console.error('📡 Detalles del error de creación:');
+        console.error(`   Status: ${axiosError.response?.status}`);
+        console.error(`   StatusText: ${axiosError.response?.statusText}`);
+        console.error(`   Response Data:`, axiosError.response?.data);
+        console.error(`   Request Data:`, productData);
+      }
+      
+      throw new Error('Error al crear producto en el servidor');
     }
   }
 
   /**
-   * Obtener estado del cache
+   * Actualiza un producto existente - CON DEBUG
    */
-  getCacheStats(): { hasCache: boolean; cacheAge: number; cacheSize: number } {
-    const now = Date.now();
-    return {
-      hasCache: this.cache !== null,
-      cacheAge: this.lastFetch ? now - this.lastFetch : 0,
-      cacheSize: this.cache ? this.cache.length : 0
-    };
+  async updateProduct(id: number, productData: Partial<FrontendProduct>): Promise<string> {
+    try {
+      console.log(`🚀 === ACTUALIZANDO PRODUCTO ${id} ===`);
+      console.log('📤 Datos del frontend recibidos:', JSON.stringify(productData, null, 2));
+      
+      const updateDto = mapFrontendToUpdateDto(productData);
+      console.log('📋 DTO generado para backend:', JSON.stringify(updateDto, null, 2));
+      
+      const response = await api.patch<string>(`${this.baseUrl}/${id}`, updateDto);
+      
+      console.log('📡 Respuesta del servidor:');
+      console.log(`   Status: ${response.status}`);
+      console.log(`   Message: ${response.data}`);
+      console.log('✅ Producto actualizado exitosamente');
+      
+      return response.data;
+      
+    } catch (error) {
+      console.error(`❌ === ERROR ACTUALIZANDO PRODUCTO ${id} ===`);
+      console.error('Error completo:', error);
+      console.error('Datos que se intentaron actualizar:', productData);
+      
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as any;
+        console.error('📡 Detalles del error de actualización:');
+        console.error(`   Status: ${axiosError.response?.status}`);
+        console.error(`   Data:`, axiosError.response?.data);
+      }
+      
+      throw new Error(`Error al actualizar producto con ID ${id}`);
+    }
+  }
+
+  /**
+   * Elimina un producto - CON DEBUG
+   */
+  async deleteProduct(id: number): Promise<string> {
+    try {
+      console.log(`🚀 === ELIMINANDO PRODUCTO ${id} ===`);
+      
+      const response = await api.delete<string>(`${this.baseUrl}/${id}`);
+      
+      console.log('📡 Respuesta del servidor:');
+      console.log(`   Status: ${response.status}`);
+      console.log(`   Message: ${response.data}`);
+      console.log('✅ Producto eliminado exitosamente');
+      
+      return response.data;
+      
+    } catch (error) {
+      console.error(`❌ === ERROR ELIMINANDO PRODUCTO ${id} ===`);
+      console.error('Error completo:', error);
+      
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as any;
+        console.error('📡 Detalles del error de eliminación:');
+        console.error(`   Status: ${axiosError.response?.status}`);
+        console.error(`   Data:`, axiosError.response?.data);
+      }
+      
+      throw new Error(`Error al eliminar producto con ID ${id}`);
+    }
+  }
+
+  /**
+   * Realiza un health check simple - CON DEBUG
+   */
+  async healthCheck(): Promise<boolean> {
+    try {
+      console.log('🔍 === HEALTH CHECK DE PRODUCTOS API ===');
+      
+      const response = await api.get(`${this.baseUrl}`);
+      
+      console.log('📡 Health check response:');
+      console.log(`   Status: ${response.status}`);
+      console.log(`   ✅ API está funcionando correctamente`);
+      
+      return response.status === 200;
+      
+    } catch (error) {
+      console.error('❌ === HEALTH CHECK FALLIDO ===');
+      console.error('Error:', error);
+      
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as any;
+        console.error(`   Status: ${axiosError.response?.status}`);
+        console.error(`   ❌ API no está disponible`);
+      }
+      
+      return false;
+    }
+  }
+
+  /**
+   * 🛠️ MÉTODO TEMPORAL PARA DEBUG - eliminar después
+   */
+  async debugMode(): Promise<void> {
+    console.log('🔧 === MODO DEBUG ACTIVADO ===');
+    
+    try {
+      // Test health check
+      const isHealthy = await this.healthCheck();
+      console.log(`🏥 Health check: ${isHealthy ? '✅ OK' : '❌ FAIL'}`);
+      
+      if (isHealthy) {
+        // Test getAllProducts con análisis detallado
+        console.log('🧪 Probando getAllProducts...');
+        const products = await this.getAllProducts();
+        console.log(`📊 Resultado: ${products.length} productos obtenidos`);
+        
+        // Test producto individual si hay productos
+        if (products.length > 0) {
+          console.log('🧪 Probando getProductById...');
+          const firstProduct = await this.getProductById(products[0].ProductID);
+          console.log(`📦 Producto individual obtenido: ${firstProduct.ProductName}`);
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Error en modo debug:', error);
+    }
+    
+    console.log('🔧 === FIN MODO DEBUG ===');
   }
 }
 
-// Exportar instancia única
 export const productsApiService = new ProductsApiService();
 
-// Exportar funciones auxiliares para uso directo
-export const productService = {
-  // Obtener todos los productos
-  getAll: () => productsApiService.getAllProducts(),
+// 🛠️ FUNCIONES DE DEBUG EXPORTADAS PARA USO MANUAL
+export const debugFunctions = {
+  // Inspeccionar datos crudos
+  async inspectRawData(): Promise<void> {
+    try {
+      const response = await api.get('/products');
+      debugProductData(response.data);
+    } catch (error) {
+      console.error('Error inspeccionando datos:', error);
+    }
+  },
   
-  // Obtener producto por ID
-  getById: (id: number) => productsApiService.getProductById(id),
+  // Probar mapeo de un producto específico
+  async testProductMapping(productId: number): Promise<void> {
+    try {
+      const response = await api.get(`/products/${productId}`);
+      testSingleProductMapping(response.data);
+    } catch (error) {
+      console.error('Error probando mapeo:', error);
+    }
+  },
   
-  // Obtener por categoría
-  getByCategory: (category: string) => productsApiService.getProductsByCategory(category),
-  
-  // Buscar productos
-  search: (query: string) => productsApiService.searchProducts(query),
-  
-  // Productos destacados
-  getFeatured: (limit?: number) => productsApiService.getFeaturedProducts(limit),
-  
-  // Productos recientes
-  getRecent: (limit?: number) => productsApiService.getRecentProducts(limit),
-  
-  // Health check
-  healthCheck: () => productsApiService.healthCheck(),
-  
-  // Estadísticas
-  getStats: () => productsApiService.getServiceStats(),
-  
-  // Cache
-  clearCache: () => productsApiService.clearCache(),
-  getCacheStats: () => productsApiService.getCacheStats(),
+  // Activar modo debug completo
+  async runFullDebug(): Promise<void> {
+    await productsApiService.debugMode();
+  }
 };
+
+// 🚨 PARA USAR EN CONSOLA DEL BROWSER (temporal):
+// import { debugFunctions } from '@/services/productsApi'
+// debugFunctions.runFullDebug()

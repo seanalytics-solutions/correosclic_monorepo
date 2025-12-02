@@ -5,6 +5,7 @@ import { useCart } from '@/hooks/useCart';
 import { useFavorites } from '@/hooks/useFavorites';
 import { SafeImage } from '../ui/SafeImage';
 import { IoHeartOutline, IoHeartSharp, IoBagOutline, IoStar, IoShieldCheckmark, IoRocket, IoReturnUpBack } from "react-icons/io5";
+import type { FrontendProduct } from '@/schemas/products'
 
 interface ProductDetailsProps {
   product: {
@@ -14,19 +15,19 @@ interface ProductDetailsProps {
     ProductImageUrl: string;
     ProductColors: string[];
     ProductDescription: string;
-    ProductCategory: string;
+    ProductCategory: string | null;
     ProductStock: number;
     ProductSizes?: string[];
     ProductBrand?: string;
   };
 }
 
-export const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
+export const ProductDetails: React.FC<FrontendProduct> = (product) => {
   const [selectedColor, setSelectedColor] = useState<string>(
     product.ProductColors?.[0] || '#000000'
   );
   const [selectedSize, setSelectedSize] = useState<string>(
-    product.ProductSizes?.[0] || 'M'
+    'M'
   );
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
@@ -190,7 +191,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
               )}
 
               {/* Tallas */}
-              {product.ProductSizes && product.ProductSizes.length > 0 && (
+              {/* {product.ProductSizes && product.ProductSizes.length > 0 && (
                 <div className="space-y-3">
                   <h3 className="text-sm font-semibold text-gray-900">Talla</h3>
                   <div className="flex gap-2">
@@ -209,7 +210,7 @@ export const ProductDetails: React.FC<ProductDetailsProps> = ({ product }) => {
                     ))}
                   </div>
                 </div>
-              )}
+              )} */}
 
               {/* Cantidad */}
               <div className="space-y-3">

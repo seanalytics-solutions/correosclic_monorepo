@@ -1,4 +1,17 @@
-import { Controller, Get, Post,  Patch, Body, Param, Delete, Put, NotFoundException, BadRequestException, UploadedFile, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  Delete,
+  Put,
+  NotFoundException,
+  BadRequestException,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
 import { PaquetesService } from './paquetes.service';
 import { Paquete } from './entities/paquete.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -8,7 +21,7 @@ import { UploadImageService } from '../upload-image/upload-image.service';
 export class PaquetesController {
   constructor(
     private readonly paquetesService: PaquetesService,
-    private readonly uploadService: UploadImageService
+    private readonly uploadService: UploadImageService,
   ) {}
 
   @Get()
@@ -17,7 +30,7 @@ export class PaquetesController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string): Promise<Paquete> {
+  findOne(@Param('id') id: number): Promise<Paquete> {
     return this.paquetesService.findOne(id);
   }
 
@@ -27,20 +40,26 @@ export class PaquetesController {
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() data: Partial<Paquete>): Promise<Paquete> {
+  update(
+    @Param('id') id: number,
+    @Body() data: Partial<Paquete>,
+  ): Promise<Paquete> {
     return this.paquetesService.update(id, data);
   }
 
   @Patch(':id/estatus')
   async actualizarEstatus(
-    @Param('id') id: string,
+    @Param('id') id: number,
     @Body('estatus') estatus: string,
   ) {
     if (!estatus) {
       throw new BadRequestException('El estatus es obligatorio.');
     }
 
-    const actualizado = await this.paquetesService.actualizarEstatus(id, estatus);
+    const actualizado = await this.paquetesService.actualizarEstatus(
+      id,
+      estatus,
+    );
     if (!actualizado) {
       throw new NotFoundException(`No se encontró el paquete con ID ${id}`);
     }
@@ -54,8 +73,8 @@ export class PaquetesController {
   @Patch(':id/evidencia')
   @UseInterceptors(FileInterceptor('file'))
   async anadirEvidencia(
-    @Param('id') id: string,
-    @UploadedFile() file: Express.Multer.File
+    @Param('id') id: number,
+    @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) {
       throw new BadRequestException('No se subió ningún archivo.');
@@ -74,9 +93,8 @@ export class PaquetesController {
     };
   }
 
-
   @Delete(':id')
-  remove(@Param('id') id: string) {
+  remove(@Param('id') id: number) {
     return this.paquetesService.remove(id);
   }
 }

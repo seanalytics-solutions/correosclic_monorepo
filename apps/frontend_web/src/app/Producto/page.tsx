@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function ProductDetailPage() {
-  const { selectedProduct, hasSelectedProduct, Products } = useProducts();
+  const { selectedProduct, hasSelectedProduct, products } = useProducts();
   const { addToCart } = useCart();
   const { addToFavorites, removeFromFavorites, isFavorite } = useFavorites();
   const { Lists, createList, addProductToList } = useLists();
@@ -60,27 +60,26 @@ export default function ProductDetailPage() {
     currency: 'MXN',
   }).format(selectedProduct.productPrice);
 
-  const Variants: string[] = selectedProduct.variants.map(variant => variant.valor)
-  const Colors: string[] = Variants.filter(function(color){
-    return color.includes('#')
-  })
+  // const Variants: string[] = selectedProduct.variants?.map(variant => variant.valor) || [];
+  // const Colors: string[] = Variants.filter(function(color){
+  //   return color.includes('#')
+  // })
 
-  const tallas = Variants.filter(function(talla) {
-    return talla.includes("G") || talla.includes("M") || talla.includes("CH");
-  });
-
+  // const tallas = Variants.filter(function(talla) {
+  //   return talla.includes("G") || talla.includes("M") || talla.includes("CH");
+  // });
   // Función para agregar al carrito
   const handleAddToCart = () => {
     if (!selectedProduct) return;
     
     // Validaciones opcionales
-    if (Colors.length > 0 && !selectedColor) {
-      return;
-    }
+    // if (Colors.length > 0 && !selectedColor) {
+    //   return;
+    // }
     
-    if (tallas.length > 0 && !selectedTalla) {
-      return;
-    }
+    // if (tallas.length > 0 && !selectedTalla) {
+    //   return;
+    // }
 
     // Agregar al carrito
     addToCart(selectedProduct, cantidad);
@@ -124,14 +123,14 @@ export default function ProductDetailPage() {
       <div className="">
         <div className="flex">
           <div className=" rounded-2xl p-8 basis-2/3">
-            <img src={selectedProduct.ProductImageUrl} className="max-w-96" />
+            <img src={selectedProduct.ProductImageUrl ?? ""} className="max-w-96" />
           </div>
           <div className="basis-1/3">
             <p className="text-xl  mb-2">{selectedProduct.ProductName}</p>
             <p className="my-6 text-3xl font-bold">{formattedPrice}</p>
             
             {/* Selección de colores */}
-            {Colors.length > 0 && (
+            {/* {Colors.length > 0 && (
               <div className="mb-6">
                 <p className="mb-2 font-thin text-[#FF6FBF]">Selecciona un color:</p>
                 <div className="flex">
@@ -151,10 +150,10 @@ export default function ProductDetailPage() {
                   <p className="text-sm text-gray-600 mt-1">Color seleccionado: {selectedColor}</p>
                 )}
               </div>
-            )}
+            )} */}
 
             {/* Selección de tallas */}
-            {tallas.length > 0 && (
+            {/* {tallas.length > 0 && (
               <div className="mb-6">
                 <p className="mb-2 font-thin text-[#FF6FBF]">Selecciona una talla:</p>
                 <div className="flex">
@@ -176,7 +175,7 @@ export default function ProductDetailPage() {
                   <p className="text-sm text-gray-600 mt-1">Talla seleccionada: {selectedTalla}</p>
                 )}
               </div>
-            )}
+            )} */}
 
             {/* Input de cantidad */}
             <div className="mb-6">
@@ -298,7 +297,7 @@ export default function ProductDetailPage() {
             {selectedProduct.ProductDescription}
           </div>
           <div className="basis-1/2 justify-center flex ">
-            <img src={selectedProduct.ProductImageUrl} className=" max-h-80" />
+            <img src={selectedProduct.ProductImageUrl ?? ""} className=" max-h-80" />
           </div>
         </div>
 
@@ -307,7 +306,7 @@ export default function ProductDetailPage() {
           <CommentsSection productId={selectedProduct.ProductID.toString()} />
         </div>
       </div>
-      <CarrouselProducts entradas={Products} title="Mas Productos"></CarrouselProducts>
+      <CarrouselProducts entradas={products} title="Mas Productos"></CarrouselProducts>
     </Plantilla>
   );
 }

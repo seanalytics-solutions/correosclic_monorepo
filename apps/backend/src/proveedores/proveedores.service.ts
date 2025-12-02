@@ -1,23 +1,20 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Proveedor } from './proveedor.entity';
+import { PrismaService } from '../prisma/prisma.service';
+import { Proveedor } from '@prisma/client';
 
 @Injectable()
 export class ProveedoresService {
-    constructor(
-        @InjectRepository(Proveedor)
-        private readonly repo: Repository<Proveedor>,
-    ) { }
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
 
-    create(data: Partial<Proveedor>) {
-        const proveedor = this.repo.create(data);
-        return this.repo.save(proveedor);
-    }
+  create(data: Partial<Proveedor>) {
+    return this.prisma.proveedor.create({
+      data: data as any,
+    });
+  }
 
-    findBySub(sub: string) {
-        return this.repo.findOne({ where: { sub } });
-    }
-
-    
+  findBySub(sub: string) {
+    return this.prisma.proveedor.findFirst({ where: { sub } });
+  }
 }

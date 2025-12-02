@@ -1,44 +1,28 @@
-import { Product } from "../../products/entities/product.entity";
-import { Profile } from "../../profile/entities/profile.entity";
-import { Column, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Product } from '../../products/entities/product.entity';
+import { Profile } from '../../profile/entities/profile.entity';
 
-@Entity()
 export class Transaction {
-    @PrimaryGeneratedColumn()
-    id:number
+  id: number;
 
-    @Column('decimal')
-    total:number
+  total: number;
 
-    @Column({type:'timestamp',default:()=>"CURRENT_TIMESTAMP(6)"})
-    diaTransaccion:Date
+  diaTransaccion: Date;
 
-    @ManyToOne(()=>Profile,profile=>profile.transactions,{nullable:false})
-    @JoinColumn({name:'profileId'})
-    profile:Profile
+  profile: Profile;
 
-    @Column()
-    profileId:number
+  profileId: number;
 
-    @OneToMany(()=>TransactionContents,(transaction)=>transaction.transaction)
-    contenidos:TransactionContents[]
+  contenidos: TransactionContents[];
 }
 
-@Entity()
-export class TransactionContents{
-    @PrimaryGeneratedColumn()
-    id:number
+export class TransactionContents {
+  id: number;
 
-    @Column('decimal')
-    precio:number
+  precio: number;
 
-    @Column('int')
-    cantidad:number
+  cantidad: number;
 
-    @ManyToOne(()=>Product,(product)=>product.id,{eager:true,cascade:true})
-    producto:Product
+  producto: Product;
 
-    @ManyToOne(()=>Transaction,(transaction)=>transaction.contenidos,{cascade:true})
-    transaction:Transaction
-
+  transaction: Transaction;
 }

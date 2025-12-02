@@ -1,18 +1,20 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
-import { GuiaReadRepositoryInterface, } from '../../../application/ports/outbound/guia-read.repository.interface';
-import { 
-  TrazabilidadReadModel, 
-  GuiaListReadModel, 
-  IncidenciaReadModel, 
-  ContactoReadModel 
+import { PrismaService } from '../../../../prisma/prisma.service';
+import { GuiaReadRepositoryInterface } from '../../../application/ports/outbound/guia-read.repository.interface';
+import {
+  TrazabilidadReadModel,
+  GuiaListReadModel,
+  IncidenciaReadModel,
+  ContactoReadModel,
 } from '../../../application/read-models/guia.read-models';
 
 @Injectable()
 export class GuiaReadRepository implements GuiaReadRepositoryInterface {
-  constructor(private readonly dataSource: DataSource) { }
+  constructor(private readonly prisma: PrismaService) {}
 
-  async findByNumeroRastreo(numeroRastreo: string): Promise<TrazabilidadReadModel | null> {
+  async findByNumeroRastreo(
+    numeroRastreo: string,
+  ): Promise<TrazabilidadReadModel | null> {
     const query = `
       WITH guia_info AS (
         SELECT 
@@ -21,6 +23,7 @@ export class GuiaReadRepository implements GuiaReadRepositoryInterface {
           g.situacion_actual,
           g.valor_declarado,
           g.peso_kg,
+          g.key_pdf,
           CONCAT(g.alto_cm, 'x', g.largo_cm, 'x', g.ancho_cm, ' cm') as dimensiones,
           g.fecha_creacion,
           g.fecha_entrega_estimada,
@@ -78,11 +81,48 @@ export class GuiaReadRepository implements GuiaReadRepositoryInterface {
       GROUP BY 
         gi.id_guia, gi.numero_de_rastreo, gi.situacion_actual, 
         gi.remitente_nombre, gi.destinatario_nombre, gi.valor_declarado,
-        gi.peso_kg, gi.dimensiones, gi.fecha_creacion, gi.fecha_entrega_estimada;
+        gi.peso_kg, gi.key_pdf, gi.dimensiones, gi.fecha_creacion, gi.fecha_entrega_estimada;
     `;
 
-    const result = await this.dataSource.query(query, [numeroRastreo]);
-    return result.length > 0 ? result[0] : null;
+    const result = await this.prisma.$queryRawUnsafe<TrazabilidadReadModel[]>(
+      query,
+      numeroRastreo,
+    );
+    return Array.isArray(result) && result.length > 0 ? result[0] : null;
+  }
+
+  async findByProfileId(profileId: number): Promise<GuiaListReadModel[]> {
+    const query = `
+    SELECT 
+      g.numero_de_rastreo,
+      g.situacion_actual,
+      g.fecha_creacion,
+      g.valor_declarado,
+      g.peso_kg,
+      g.key_pdf,
+      rem.nombres || ' ' || rem.apellidos as remitente,
+      dest.nombres || ' ' || dest.apellidos as destinatario,
+      dest.localidad as ciudad_destino,
+      dest.estado as estado_destino,
+      m.ultimo_estado,
+      m.fecha_ultimo_movimiento
+    FROM guias g
+    LEFT JOIN contactos_guias rem ON g.id_remitente = rem.id_contacto
+    LEFT JOIN contactos_guias dest ON g.id_destinatario = dest.id_contacto
+    LEFT JOIN LATERAL (
+      SELECT 
+        estado as ultimo_estado, 
+        fecha_movimiento as fecha_ultimo_movimiento
+      FROM movimientos_guias mg 
+      WHERE mg.id_guia = g.id_guia
+      ORDER BY mg.fecha_movimiento DESC
+      LIMIT 1
+    ) m ON true
+    WHERE g.profile_id = $1
+    ORDER BY g.fecha_creacion DESC;
+  `;
+
+    return await this.prisma.$queryRawUnsafe(query, profileId);
   }
 
   async findAllGuias(): Promise<GuiaListReadModel[]> {
@@ -93,6 +133,7 @@ export class GuiaReadRepository implements GuiaReadRepositoryInterface {
         g.fecha_creacion,
         g.valor_declarado,
         g.peso_kg,
+        g.key_pdf,
         rem.nombres || ' ' || rem.apellidos as remitente,
         dest.nombres || ' ' || dest.apellidos as destinatario,
         dest.localidad as ciudad_destino,
@@ -114,7 +155,7 @@ export class GuiaReadRepository implements GuiaReadRepositoryInterface {
       ORDER BY g.fecha_creacion DESC;
     `;
 
-    return await this.dataSource.query(query);
+    return await this.prisma.$queryRawUnsafe(query);
   }
 
   async findAllIncidencias(): Promise<IncidenciaReadModel[]> {
@@ -135,7 +176,7 @@ export class GuiaReadRepository implements GuiaReadRepositoryInterface {
       ORDER BY i.fecha_incidencia DESC;
     `;
 
-    return await this.dataSource.query(query);
+    return await this.prisma.$queryRawUnsafe(query);
   }
 
   async findAllContactos(): Promise<ContactoReadModel[]> {
@@ -163,6 +204,6 @@ export class GuiaReadRepository implements GuiaReadRepositoryInterface {
       ORDER BY nombres, apellidos;
     `;
 
-    return await this.dataSource.query(query);
+    return await this.prisma.$queryRawUnsafe(query);
   }
 }

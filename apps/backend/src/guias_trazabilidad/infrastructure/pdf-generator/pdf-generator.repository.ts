@@ -5,6 +5,8 @@ import { plantillaGuiaInternacional } from './plantillas/guia-plantilla-internac
 import { GuiaDomainEntity } from '../../../guias_trazabilidad/business-logic/guia.domain-entity-root';
 import { GuiaMapper } from '../mappers/guia.mapper';
 import { plantillaGuiaNacional } from './plantillas/guia-plantilla-nacional';
+// Cambiar a default import
+import ReactPDF from '@react-pdf/renderer';
 
 @Injectable()
 export class PDFGeneratorRepository implements PDFGeneratorRepositoryInterface {
@@ -13,34 +15,37 @@ export class PDFGeneratorRepository implements PDFGeneratorRepositoryInterface {
     qrCodeDataURL: string,
   ): Promise<Result<Buffer>> {
     try {
-      const { pdf } = await import('@react-pdf/renderer');
-
+      console.log('🚀 Iniciando generación de PDF...');
       const data = GuiaMapper.toPdfPayload(pdfPayload);
-      const GuiaDocument = await plantillaGuiaNacional(data, qrCodeDataURL);
+      console.log('📄 PDF Data:', JSON.stringify(data, null, 2));
+      console.log('📷 QR URL length:', qrCodeDataURL?.length);
 
-      const pdfBlob = await pdf(GuiaDocument).toBlob();
+      const GuiaDocument = await plantillaGuiaNacional(data, qrCodeDataURL);
+      console.log('📑 Document created:', !!GuiaDocument);
+
+      // Usar ReactPDF.pdf en lugar de pdf directamente
+      const pdfBlob = await ReactPDF.pdf(GuiaDocument).toBlob();
       const pdfBuffer = Buffer.from(await pdfBlob.arrayBuffer());
 
       return Result.success(pdfBuffer);
     } catch (error) {
+      console.error('❌ Error:', error);
       return Result.failure(`Error generando PDF: ${error.message}`);
     }
   }
 
   async generarGuiaPDFInternacional(
     pdfPayload: GuiaDomainEntity,
-    qrCodeDataURL,
+    qrCodeDataURL: string,
   ): Promise<Result<Buffer>> {
     try {
-      const { pdf } = await import('@react-pdf/renderer');
-
       const data = GuiaMapper.toPdfPayload(pdfPayload);
       const GuiaDocument = await plantillaGuiaInternacional(
         data,
         qrCodeDataURL,
       );
 
-      const pdfBlob = await pdf(GuiaDocument).toBlob();
+      const pdfBlob = await ReactPDF.pdf(GuiaDocument).toBlob();
       const pdfBuffer = Buffer.from(await pdfBlob.arrayBuffer());
 
       return Result.success(pdfBuffer);

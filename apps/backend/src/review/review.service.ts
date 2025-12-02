@@ -1,22 +1,24 @@
-// src/review/review.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Review } from './entities/review.entity';
-import { ReviewImage } from './entities/review-image.entity';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { UploadImageService } from '../upload-image/upload-image.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class ReviewService {
   constructor(
-    @InjectRepository(Review) private readonly reviewRepo: Repository<Review>,
-    @InjectRepository(ReviewImage) private readonly reviewImageRepo: Repository<ReviewImage>,
+    private readonly prisma: PrismaService,
     private readonly uploadImageService: UploadImageService,
   ) {}
 
   async create(dto: CreateReviewDto) {
-    return this.reviewRepo.save(this.reviewRepo.create(dto));
+    return this.prisma.review.create({
+      data: {
+        rating: dto.rating,
+        comment: dto.comment,
+        productId: dto.productId,
+        profileId: dto.profileId,
+      },
+    });
   }
 
   // NUEVO: crear con imágenes (multipart)
@@ -26,9 +28,13 @@ export class ReviewService {
       const imgs = await Promise.all(
         files.map(async (file, idx) => {
           const url = await this.uploadImageService.uploadFileImage(file);
-          return this.reviewImageRepo.save(
-            this.reviewImageRepo.create({ url, orden: idx, reviewId: review.id }),
-          );
+          return this.prisma.reviewImage.create({
+            data: {
+              url,
+              orden: idx,
+              reviewId: review.id,
+            },
+          });
         }),
       );
       (review as any).images = imgs;
@@ -38,39 +44,41 @@ export class ReviewService {
 
   // NUEVO: agregar imágenes a una reseña existente
   async addImages(reviewId: number, files: Express.Multer.File[]) {
-    const review = await this.reviewRepo.findOne({ where: { id: reviewId } });
+    const review = await this.prisma.review.findUnique({ where: { id: reviewId } });
     if (!review) throw new NotFoundException('Reseña no encontrada');
 
     const imgs = await Promise.all(
       files.map(async (file, idx) => {
         const url = await this.uploadImageService.uploadFileImage(file);
-        return this.reviewImageRepo.save(
-          this.reviewImageRepo.create({ url, orden: idx, reviewId }),
-        );
+        return this.prisma.reviewImage.create({
+          data: { url, orden: idx, reviewId },
+        });
       }),
     );
     return imgs;
   }
 
   async findByProduct(productId: number) {
-    return this.reviewRepo.find({
+    return this.prisma.review.findMany({
       where: { productId },
-      relations: { profile: true, images: true }, // 👈 incluye imágenes
-      order: { createdAt: 'DESC' as any },
+      include: { profile: true, images: true }, // 👈 incluye imágenes
+      orderBy: { createdAt: 'desc' },
     });
   }
 
   async remove(id: number) {
-    const review = await this.reviewRepo.findOne({ where: { id } });
+    const review = await this.prisma.review.findUnique({ where: { id } });
     if (!review) throw new NotFoundException('Reseña no encontrada');
-    return this.reviewRepo.remove(review);
+    return this.prisma.review.delete({ where: { id } });
   }
 
   // NUEVO: borrar una imagen específica
   async removeImage(reviewId: number, imageId: number) {
-    const img = await this.reviewImageRepo.findOne({ where: { id: imageId, reviewId } });
+    const img = await this.prisma.reviewImage.findFirst({
+      where: { id: imageId, reviewId },
+    });
     if (!img) throw new NotFoundException('Imagen de reseña no encontrada');
-    await this.reviewImageRepo.remove(img);
+    await this.prisma.reviewImage.delete({ where: { id: imageId } });
     return 'Imagen eliminada';
   }
 }

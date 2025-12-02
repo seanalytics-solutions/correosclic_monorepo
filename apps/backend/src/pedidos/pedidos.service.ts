@@ -1,118 +1,135 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Pedido, PedidoProducto } from './entities/pedido.entity';
-import { Product } from '../products/entities/product.entity';
-import { Profile } from '../profile/entities/profile.entity';
-import { Misdireccione } from '../misdirecciones/entities/misdireccione.entity';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreatePedidoDto } from './dto/create-pedido.dto';
-import { UpdatePedidoDto } from './dto/update-pedido.dto';
+// import { UpdatePedidoDto } from './dto/update-pedido.dto';
 
 @Injectable()
 export class PedidosService {
-  constructor(
-    @InjectRepository(Pedido)
-    private readonly pedidoRepository: Repository<Pedido>,
-    @InjectRepository(PedidoProducto)
-    private readonly pedidoProductoRepository: Repository<PedidoProducto>,
-    @InjectRepository(Product)
-    private readonly productRepository: Repository<Product>,
-
-  ) { }
+  constructor(private prisma: PrismaService) {}
 
   async create(createPedidoDto: CreatePedidoDto) {
-    await this.pedidoRepository.manager.transaction(async (manager) => {
-      const pedido = new Pedido();
+    const { profileId, direccionId, productos, ...rest } = createPedidoDto;
 
-      const profile = await manager.findOne(Profile, {
-        where: { id: createPedidoDto.profileId },
+    const profile = await this.prisma.profile.findUnique({
+      where: { id: profileId },
+    });
+    if (!profile) {
+      throw new NotFoundException(`El perfil con ID ${profileId} no existe`);
+    }
+
+    const direccion = await this.prisma.misdireccione.findUnique({
+      where: { id: direccionId },
+    });
+    if (!direccion) {
+      throw new NotFoundException(
+        `La dirección con ID ${direccionId} no existe`,
+      );
+    }
+
+    let total = 0;
+    const pedidoProductosData: { productoId: number; cantidad: number }[] = [];
+
+    for (const item of productos) {
+      const producto = await this.prisma.product.findUnique({
+        where: { id: item.producto_id },
       });
-      if (!profile) {
+      if (!producto) {
         throw new NotFoundException(
-          `El perfil con ID ${createPedidoDto.profileId} no existe`,
+          `El producto con ID ${item.producto_id} no existe`,
         );
       }
 
-      pedido.profile = profile;
+      const subtotal = Number(producto.precio) * item.cantidad;
+      total += subtotal;
 
-      const direccion = await manager.findOne(Misdireccione, {
-        where: { id: createPedidoDto.direccionId },
+      pedidoProductosData.push({
+        productoId: producto.id,
+        cantidad: item.cantidad,
       });
-      if (!direccion) {
-        throw new NotFoundException(
-          `La dirección con ID ${createPedidoDto.direccionId} no existe`,
-        );
-      }
+    }
 
-      pedido.direccion = direccion;
-
-      // Asignar los nuevos campos del DTO
-      pedido.estatus_pago = createPedidoDto.estatus_pago ?? '';
-      pedido.calle = createPedidoDto.calle ?? '';
-      pedido.numero_int = createPedidoDto.numero_int ?? '';
-      pedido.numero_exterior = createPedidoDto.numero_exterior ?? '';
-      pedido.cp = createPedidoDto.cp ?? '';
-      pedido.ciudad = createPedidoDto.ciudad ?? '';
-      pedido.nombre = createPedidoDto.nombre ?? '';
-      pedido.last4 = createPedidoDto.last4 ?? '';
-      pedido.brand = createPedidoDto.brand ?? '';
-
-      let total = 0;
-      const detalles: PedidoProducto[] = [];
-
-      for (const item of createPedidoDto.productos) {
-        const producto = await manager.findOne(Product, {
-          where: { id: item.producto_id },
-        });
-        if (!producto) {
-          throw new NotFoundException(
-            `El producto con ID ${item.producto_id} no existe`,
-          );
-        }
-
-        const subtotal = producto.precio * item.cantidad;
-        total += subtotal;
-
-        const detalle = new PedidoProducto();
-        detalle.producto = producto;
-        detalle.cantidad = item.cantidad;
-        detalle.pedido = pedido;
-
-        detalles.push(detalle);
-      }
-
-      pedido.total = total;
-      pedido.status = createPedidoDto.status;
-
-      await manager.save(pedido);
-
-      for (const detalle of detalles) {
-        await manager.save(detalle);
-      }
+    await this.prisma.pedido.create({
+      data: {
+        profileId,
+        direccionId,
+        estatus_pago: rest.estatus_pago ?? '',
+        calle: rest.calle ?? '',
+        numero_int: rest.numero_int ?? '',
+        numero_exterior: rest.numero_exterior ?? '',
+        cp: rest.cp ?? '',
+        ciudad: rest.ciudad ?? '',
+        nombre: rest.nombre ?? '',
+        last4: rest.last4 ?? '',
+        brand: rest.brand ?? '',
+        total,
+        status: rest.status,
+        productos: {
+          create: pedidoProductosData.map((p) => ({
+            producto: { connect: { id: p.productoId } },
+            cantidad: p.cantidad,
+          })),
+        },
+      },
     });
 
     return { message: 'Pedido creado correctamente' };
   }
 
   async findAll() {
-  return this.pedidoRepository.find({
-    relations: ['productos', 'productos.producto', 'productos.producto.images', 'direccion'],
-    order: { fecha: 'DESC' },
-  });
-}
+    return this.prisma.pedido.findMany({
+      include: {
+        productos: {
+          include: {
+            producto: {
+              include: {
+                images: true,
+              },
+            },
+          },
+        },
+        direccion: true,
+        factura: true,
+      },
+      orderBy: { fecha: 'desc' },
+    });
+  }
 
   async findByUser(profileId: number) {
-  return this.pedidoRepository.find({
-    where: { profile: { id: profileId } },
-    relations: ['productos', 'productos.producto', 'productos.producto.images', 'direccion'],
-    order: { fecha: 'DESC' },
-  });
-}
+    return this.prisma.pedido.findMany({
+      where: { profileId },
+      include: {
+        productos: {
+          include: {
+            producto: {
+              include: {
+                images: true,
+              },
+            },
+          },
+        },
+        direccion: true,
+        factura: true,
+      },
+      orderBy: { fecha: 'desc' },
+    });
+  }
 
   async findOne(id: number) {
-    const pedido = await this.pedidoRepository.findOne({
+    const pedido = await this.prisma.pedido.findUnique({
       where: { id },
-      relations: ['productos', 'productos.producto', 'productos.producto.images', 'direccion'],
+      include: {
+        productos: {
+          include: {
+            producto: {
+              include: {
+                images: true,
+              },
+            },
+          },
+        },
+        direccion: true,
+        factura: true,
+      },
     });
 
     if (!pedido) {
@@ -133,16 +150,22 @@ export class PedidosService {
   //}
 
   async remove(id: number) {
-    const pedido = await this.pedidoRepository.findOne({
+    const pedido = await this.prisma.pedido.findUnique({
       where: { id },
-      relations: ['productos'],
+      include: { productos: true },
     });
     if (!pedido) {
       throw new NotFoundException(`Pedido con ID ${id} no encontrado`);
     }
 
-    await this.pedidoProductoRepository.remove(pedido.productos);
-    await this.pedidoRepository.remove(pedido);
+    // Delete related PedidoProductos first
+    await this.prisma.pedidoProducto.deleteMany({
+      where: { pedidoId: id },
+    });
+
+    await this.prisma.pedido.delete({
+      where: { id },
+    });
 
     return { message: 'Pedido eliminado correctamente' };
   }

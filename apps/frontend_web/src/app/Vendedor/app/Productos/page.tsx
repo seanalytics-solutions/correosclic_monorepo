@@ -7,14 +7,11 @@ import { Separator } from '@/components/ui/separator'
 import { useProducts } from '@/hooks/useProduct'
 import { Filtros } from '../../components/filtros'
 import { ProductosProps } from '@/types' // ← CAMBIO: nuevo import
-import { ProductSheet } from './Componentes/ProductSheet'
-
-export { ProductSheet }
 
 export default function Productos() {
     // ← CAMBIO: destructurar más propiedades del hook para manejar estados
     const { 
-        Products, 
+        products, 
         loading, 
         error, 
         isHydrated 
@@ -23,10 +20,10 @@ export default function Productos() {
     const [filteredProducts, setFilteredProducts] = useState<ProductosProps[]>([])
     
         React.useEffect(() => {
-            const mappedProducts: ProductosProps[] = Products.map(product => ({
+            const mappedProducts: ProductosProps[] = products.map(product => ({
                 Color: product.Color,
                 ProductCupons: product.ProductCupons,
-                variants: product.variants,
+                // variants: product.variants,
                 ProductID: product.ProductID,
                 productPrice: product.productPrice,
                 ProductName: product.ProductName,
@@ -35,22 +32,27 @@ export default function Productos() {
                 ProductBrand: product.ProductBrand,
                 ProductStatus: product.ProductStatus,
                 ProductStock: product.ProductStock,
-                ProductCategory: (['Electrónica', 'Ropa', 'Hogar'].includes(product.ProductCategory as any) 
-                    ? product.ProductCategory 
+                productStockQuantity: product.productStockQuantity ?? product.ProductStock ?? 0,
+                ProductColors: product.ProductColors ?? (product.Color ? [product.Color] : []),
+                ProductWeight: product.ProductWeight ?? null,
+                ProductDimensions: product.ProductDimensions ?? null,
+                isActive: product.isActive ?? true,
+                ProductCategory: (['Electrónica', 'Ropa', 'Hogar'].includes(product.ProductCategory as any)
+                    ? product.ProductCategory
                     : 'Electrónica') as 'Electrónica' | 'Ropa' | 'Hogar',
                 ProductSellerName: product.ProductSellerName,
                 ProductSold: product.ProductSold,
                 ProductImageUrl: product.ProductImageUrl,
             }))
             setFilteredProducts(mappedProducts)
-        }, [Products])
+        }, [products])
 
     const handleFilteredProducts = (filtered: ProductosProps[]) => {
         setFilteredProducts(filtered)
     }
 
 
-    if (!isHydrated || (loading && Products.length === 0)) {
+    if (!isHydrated || (loading && products.length === 0)) {
         return (
             <Plantilla title='Productos'>
                 <div className='-mt-8'>

@@ -38,10 +38,14 @@ export const useAuth = create<AuthState>()(
 
           const { user, token } = await authService.login(data);
           
+          const validRoles = ['user', 'vendor', 'admin'] as const;
+          if (!validRoles.includes(user.role as any)) {
+            throw new Error(`Invalid role: ${user.role}`);
+          }
           console.log('✅ Login successful:', { userId: user.id, name: user.name });
           
           set({ 
-            user, 
+            user: { ...user, role: user.role as 'user' | 'vendor' | 'admin' },
             token,
             isAuthenticated: true, 
             isLoading: false 
@@ -68,11 +72,14 @@ export const useAuth = create<AuthState>()(
           }
 
           const { user, token } = await authService.register(data);
-          
+          const validRoles = ['user', 'vendor', 'admin'] as const;
+if (!validRoles.includes(user.role as any)) {
+  throw new Error(`Invalid role: ${user.role}`);
+}
           console.log('✅ Registration successful:', { userId: user.id, name: user.name });
           
           set({ 
-            user, 
+  user: { ...user, role: user.role as 'user' | 'vendor' | 'admin' },
             token,
             isAuthenticated: true, 
             isLoading: false 
@@ -114,8 +121,12 @@ export const useAuth = create<AuthState>()(
           if (!token) throw new Error('No authentication token');
 
           const userProfile = await authService.getProfile(id, token);
+          const validRoles = ['user', 'vendor', 'admin'] as const;
+          if (!validRoles.includes(userProfile.role as any)) {
+            throw new Error(`Invalid role: ${userProfile.role}`);
+          }
           set({ 
-            user: userProfile,
+            user: { ...userProfile, role: userProfile.role as 'user' | 'vendor' | 'admin' },
             isAuthenticated: true 
           });
 

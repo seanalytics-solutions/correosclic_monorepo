@@ -1,15 +1,11 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { PaquetesService } from './paquetes.service';
 import { PaquetesController } from './paquetes.controller';
-import { Paquete } from './entities/paquete.entity';
 import { UploadImageModule } from '../upload-image/upload-image.module';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Paquete]),
-    UploadImageModule
-  ],
+  imports: [PrismaModule, UploadImageModule],
   controllers: [PaquetesController],
   providers: [PaquetesService],
 })

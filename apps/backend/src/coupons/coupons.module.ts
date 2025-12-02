@@ -1,18 +1,10 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { CouponsService } from './coupons.service';
 import { CouponsController } from './coupons.controller';
-
-import { CreatedCouponEntity } from './entities/created-coupon.entity';
-import { GiftedCouponEntity  } from './entities/gifted-coupon.entity';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([
-      CreatedCouponEntity,
-      GiftedCouponEntity
-    ]),
-  ],
+  imports: [PrismaModule],
   controllers: [CouponsController],
   providers: [CouponsService],
   exports: [CouponsService],

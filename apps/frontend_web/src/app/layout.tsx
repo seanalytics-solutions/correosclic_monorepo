@@ -1,5 +1,8 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
+import {
+  ClerkProvider,
+} from "@clerk/nextjs";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -11,15 +14,17 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-
   return (
-    <html lang="en">
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-      </head>
-      <body className={`${inter.variable} bg-[#FEFEFE]`}>
-        {children}
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en">
+        <head>
+          <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0"
+          />
+        </head>
+        <body className={`${inter.variable} bg-[#FEFEFE]`}>{children}</body>
+      </html>
+    </ClerkProvider>
   );
 }

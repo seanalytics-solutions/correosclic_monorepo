@@ -1,16 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import axios from 'axios';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { CreateAccount } from '../create-account/entities/create-account.entity';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class ClerkService {
   private readonly clerkSecretKey = process.env.CLERK_SECRET_KEY;
 
   constructor(
-    @InjectRepository(CreateAccount)
-    private readonly createAccountRepository: Repository<CreateAccount>,
+    private readonly prisma: PrismaService,
   ) {}
 
   async deleteUser(userId: string): Promise<void> {
@@ -35,6 +32,6 @@ export class ClerkService {
       },
     });
 
-    await this.createAccountRepository.delete({ correo: email });
+    await this.prisma.usuarios.deleteMany({ where: { correo: email } });
   }
 }

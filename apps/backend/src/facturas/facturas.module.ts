@@ -1,12 +1,10 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Factura } from './factura.entity';
 import { FacturasService } from './facturas.service';
 import { FacturasController } from './facturas.controller';
-import { Profile } from '../profile/entities/profile.entity';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Factura, Profile])],
+  imports: [PrismaModule],
   providers: [FacturasService],
   controllers: [FacturasController],
   exports: [FacturasService],

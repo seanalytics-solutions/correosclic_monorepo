@@ -1,34 +1,25 @@
-import { Controller, Post, Body, Get, Param, Delete, UseGuards, NotFoundException, Req } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  Delete,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { CardsService } from './cards.service';
 import { CreateCardDto } from './dto/create-card.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Profile } from '../profile/entities/profile.entity';
-import { Repository } from 'typeorm';
 
 @Controller('cards')
 export class CardsController {
-  constructor(
-    private readonly cardsService: CardsService,
-    @InjectRepository(Profile)
-    private readonly profileRepository: Repository<Profile>,
-  ) { }
+  constructor(private readonly cardsService: CardsService) {}
 
   @UseGuards(JwtAuthGuard)
   @Post('add')
   async addCard(@Req() req, @Body() dto: CreateCardDto) {
-    const profile = await this.profileRepository.findOne({
-      where: { id: req.user.id },
-    });
-
-    if (!profile) {
-      throw new NotFoundException('Perfil no encontrado');
-    }
-
-    return this.cardsService.addCard(
-      profile,
-      dto.token,
-    );
+    return this.cardsService.addCard(req.user.id, dto.token);
   }
 
   @Get()
@@ -49,9 +40,12 @@ export class CardsController {
   }
 
   @Delete()
-  deleteCard(@Body() body: { paymentMethodId: string, profileId: number }) {
+  deleteCard(@Body() body: { paymentMethodId: string; profileId: number }) {
     console.log('Petición DELETE recibida:', body);
     // Buscar la tarjeta en la BD por stripeCardId y profileId
-    return this.cardsService.deleteCardByStripeId(body.paymentMethodId, body.profileId);
+    return this.cardsService.deleteCardByStripeId(
+      body.paymentMethodId,
+      body.profileId,
+    );
   }
 }

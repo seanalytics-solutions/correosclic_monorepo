@@ -6,10 +6,21 @@ type GuiaPdfPayload = ReturnType<typeof GuiaMapper.toPdfPayload>;
 export const plantillaGuiaNacional = async (
   guiaData: GuiaPdfPayload,
   qrCodeDataURL: string,
-): Promise<any> => { // <--- AGREGAR ESTO AQUÍ TAMBIÉN
+): Promise<any> => {
+  // <--- AGREGAR ESTO AQUÍ TAMBIÉN
   const { Document, Page, Text, View, StyleSheet, Image } = await import(
     '@react-pdf/renderer'
   );
+
+  const ahora = new Date();
+  const fechaFormateada = ahora.toLocaleString('es-MX', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 
   // ... (El resto del código sigue igual)
   const styles = StyleSheet.create({
@@ -297,7 +308,7 @@ export const plantillaGuiaNacional = async (
               createElement(
                 View,
                 { style: styles.infoField },
-                createElement(Text, {}, 'Fecha: ___________'),
+                createElement(Text, {}, `Fecha: ${fechaFormateada}`),
               ),
               createElement(
                 View,
@@ -399,10 +410,10 @@ export const plantillaGuiaNacional = async (
               Text,
               { style: styles.instructionsText },
               'Para la entrega del paquete se requiere:\n' +
-              '• Identificación oficial vigente\n' +
-              '• Firma de recibido del destinatario\n' +
-              '• Verificación de datos personales\n' +
-              '• Presencia del destinatario o autorizado',
+                '• Identificación oficial vigente\n' +
+                '• Firma de recibido del destinatario\n' +
+                '• Verificación de datos personales\n' +
+                '• Presencia del destinatario o autorizado',
             ),
           ),
           createElement(

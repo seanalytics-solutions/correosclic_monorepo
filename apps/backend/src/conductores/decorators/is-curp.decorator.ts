@@ -1,4 +1,9 @@
-import { registerDecorator, ValidationOptions, ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator';
+import {
+  registerDecorator,
+  ValidationOptions,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
+} from 'class-validator';
 
 @ValidatorConstraint({ name: 'IsCURP', async: false })
 export class IsCURPConstraint implements ValidatorConstraintInterface {
@@ -28,7 +33,6 @@ export class IsCURPConstraint implements ValidatorConstraintInterface {
     return 'La CURP debe tener un formato válido y contener una fecha real (AAMMDD).';
   }
 }
-
 
 export function IsCURP(validationOptions?: ValidationOptions) {
   return function (object: Object, propertyName: string) {

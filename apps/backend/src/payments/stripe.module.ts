@@ -1,12 +1,10 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { StripeController } from './stripe.controller';
 import { StripeService } from './stripe.service';
-import { Card } from '../cards/entities/card.entity';
-import { Profile } from '../profile/entities/profile.entity';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Card, Profile])],
+  imports: [PrismaModule],
   controllers: [StripeController],
   providers: [StripeService],
   exports: [StripeService], // ✅ ¡Esto es lo que faltaba!

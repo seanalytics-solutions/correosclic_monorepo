@@ -1,4 +1,9 @@
-import { registerDecorator, ValidationOptions, ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator';
+import {
+  registerDecorator,
+  ValidationOptions,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
+} from 'class-validator';
 
 @ValidatorConstraint({ name: 'IsRFC', async: false })
 export class IsRFCConstraint implements ValidatorConstraintInterface {
@@ -29,7 +34,6 @@ export class IsRFCConstraint implements ValidatorConstraintInterface {
     return 'El RFC debe tener un formato válido y contener una fecha real (AAMMDD).';
   }
 }
-
 
 export function IsRFC(validationOptions?: ValidationOptions) {
   return function (object: Object, propertyName: string) {

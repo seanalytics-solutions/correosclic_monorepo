@@ -155,6 +155,8 @@ export default function SignUpScreen() {
     }
     setLoading(true)
     try {
+      console.log("Signing up with:", { nombre, emailAddress, password })
+      console.log("API URL:", process.env.EXPO_PUBLIC_API_URL)
       const res = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

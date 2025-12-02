@@ -17,7 +17,6 @@ import { AssignConductorDto } from './dto/assign-conductor.dto';
 import { UnidadResponseDto } from './dto/unidad-response.dto';
 import { OficinaTipoVehiculoDto } from './dto/oficina-tipo-vehiculo.dto';
 import { AssignZonaDto } from './dto/assign-zona.dto';
-import { Unidad } from './entities/unidad.entity';
 
 @ApiTags('Unidades')
 @Controller('unidades')
@@ -36,7 +35,7 @@ export class UnidadesController {
   @ApiOperation({ summary: 'Unidades disponibles por oficina' })
   @ApiResponse({ status: 200, type: [UnidadResponseDto] })
   async findByOficina(
-    @Param('clave') clave: string, 
+    @Param('clave') clave: string,
   ): Promise<Omit<UnidadResponseDto, 'claveOficina' | 'estado'>[]> {
     return this.unidadesService.findByOficina(clave);
   }
@@ -68,7 +67,9 @@ export class UnidadesController {
   }
 
   @Get('tipos-vehiculo/:clave')
-  @ApiOperation({ summary: 'Consultar tipos de vehículo permitidos en oficina' })
+  @ApiOperation({
+    summary: 'Consultar tipos de vehículo permitidos en oficina',
+  })
   @ApiResponse({ status: 200, type: OficinaTipoVehiculoDto })
   async getTiposVehiculo(
     @Param('clave') clave: string,
@@ -77,10 +78,13 @@ export class UnidadesController {
   }
 
   @Get('qrs/all')
-  @ApiOperation({ summary: 'Generar QR de todas las unidades (base64 y archivo)' })
+  @ApiOperation({
+    summary: 'Generar QR de todas las unidades (base64 y archivo)',
+  })
   @ApiResponse({
     status: 200,
-    description: 'Lista de objetos con id, base64 del QR y ruta del archivo PNG',
+    description:
+      'Lista de objetos con id, base64 del QR y ruta del archivo PNG',
   })
   generarQrs() {
     return this.unidadesService.generarQRsDeUnidades();
@@ -89,9 +93,9 @@ export class UnidadesController {
   @Get(':id')
   @ApiOperation({ summary: 'Obtener una unidad por ID' })
   @ApiParam({ name: 'id', description: 'ID de la unidad' })
-  @ApiResponse({ status: 200, description: 'Unidad encontrada', type: Unidad })
+  @ApiResponse({ status: 200, description: 'Unidad encontrada' })
   @ApiResponse({ status: 404, description: 'Unidad no encontrada' })
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: number) {
     return this.unidadesService.findOne(id);
   }
 }

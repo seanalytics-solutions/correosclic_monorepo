@@ -1,138 +1,129 @@
-// products.service.ts
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, In, DataSource } from "typeorm";
-import { Product } from "./entities/product.entity";
-import { ProductImage } from "./entities/product-image.entity";
-import { CreateProductDto } from "./dto/create-product.dto";
-import { UpdateProductDto } from "./dto/update-product.dto";
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 import { UploadImageService } from '../upload-image/upload-image.service';
+import { Product, ProductImage } from '@prisma/client';
 
 @Injectable()
 export class ProductsService {
   private readonly logger = new Logger(ProductsService.name);
 
   constructor(
-    @InjectRepository(Product)
-    private readonly productRepository: Repository<Product>,
-    @InjectRepository(ProductImage)
-    private readonly productImageRepository: Repository<ProductImage>,
+    private readonly prisma: PrismaService,
     private readonly uploadImageService: UploadImageService,
-    private readonly dataSource: DataSource,
-  ) { }
+  ) {}
 
-  // Crear producto + subir imágenes (multipart/form-data)
   async createWithImages(
     createProductDto: CreateProductDto,
-    files?: Express.Multer.File[]
-  ): Promise<Product> {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
+    files?: Express.Multer.File[],
+  ): Promise<Product & { images: ProductImage[] }> {
+    const { inventario, ...productData } = createProductDto;
 
-    try {
-      // Con un DTO y un ValidationPipe bien configurados, las conversiones de tipo son automáticas.
-      // El código del servicio se vuelve más limpio y se enfoca en la lógica de negocio.
-      const { inventario, ...productData } = createProductDto;
-      const productToCreate = {
-        ...productData,
-      };
-      const product = this.productRepository.create(productToCreate);
-      await queryRunner.manager.save(product);
+    return this.prisma.$transaction(async (tx) => {
+      const product = await tx.product.create({
+        data: {
+          ...productData,
+          inventario: inventario || 0,
+        },
+      });
 
+      let images: ProductImage[] = [];
       if (files?.length) {
-        const uploads = await Promise.all(
+        images = await Promise.all(
           files.map(async (file, idx) => {
             const url = await this.uploadImageService.uploadFileImage(file);
-            const img = this.productImageRepository.create({
-              url,
-              orden: idx,
-              productId: product.id,
+            return tx.productImage.create({
+              data: {
+                url,
+                orden: idx,
+                productId: product.id,
+              },
             });
-            return queryRunner.manager.save(img);
           }),
         );
-        product.images = uploads;
-      } else {
-        product.images = [];
       }
 
-      await queryRunner.commitTransaction();
-      return product;
-    } catch (error) {
-      this.logger.error(`Error al crear producto: ${error.message}`, error.stack);
-      await queryRunner.rollbackTransaction();
-      throw error;
-    } finally {
-      await queryRunner.release();
-    }
+      return { ...product, images };
+    });
   }
 
   async addImages(
     productId: number,
     files: Express.Multer.File[],
-    ordenes?: number[]
+    ordenes?: number[],
   ): Promise<ProductImage[]> {
-    const product = await this.productRepository.findOneBy({ id: productId });
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+    });
     if (!product) {
       throw new NotFoundException(`Producto con ID ${productId} no encontrado`);
     }
 
-    const maxOrderResult = await this.productImageRepository
-      .createQueryBuilder("img")
-      .select("MAX(img.orden)", "max_orden")
-      .where("img.productId = :productId", { productId })
-      .getRawOne();
-    const startOrder = (maxOrderResult?.max_orden ?? -1) + 1;
+    const maxOrderResult = await this.prisma.productImage.aggregate({
+      where: { productId },
+      _max: { orden: true },
+    });
+    const startOrder = (maxOrderResult._max.orden ?? -1) + 1;
 
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
+    return this.prisma.$transaction(async (tx) => {
       const imgs = await Promise.all(
         files.map(async (file, i) => {
           const url = await this.uploadImageService.uploadFileImage(file);
-          const img = this.productImageRepository.create({
-            url,
-            orden: ordenes?.[i] ?? startOrder + i,
-            productId: productId,
+          return tx.productImage.create({
+            data: {
+              url,
+              orden: ordenes?.[i] ?? startOrder + i,
+              productId: productId,
+            },
           });
-          return queryRunner.manager.save(img);
         }),
       );
-      await queryRunner.commitTransaction();
       return imgs;
-    } catch (error) {
-      this.logger.error(
-        `Error al agregar imágenes al producto ${productId}: ${error.message}`,
-        error.stack,
-      );
-      await queryRunner.rollbackTransaction();
-      throw error;
-    } finally {
-      await queryRunner.release();
-    }
-  }
-
-  async findAll(): Promise<Product[]> {
-    return this.productRepository.find({
-      relations: { images: true, reviews: { profile: true, images: true } },
     });
   }
 
+  async findAll(): Promise<Product[]> {
+    return this.prisma.product.findMany({
+      include: {
+        images: true,
+        reviews: {
+          include: {
+            profile: true,
+            images: true,
+          },
+        },
+      },
+    });
+  }
 
   async findAllActive(): Promise<Product[]> {
-    return this.productRepository.find({
+    return this.prisma.product.findMany({
       where: { estado: true },
-      relations: { images: true, reviews: { profile: true, images: true } },
+      include: {
+        images: true,
+        reviews: {
+          include: {
+            profile: true,
+            images: true,
+          },
+        },
+      },
     });
   }
 
   async findOne(id: number): Promise<Product> {
-    const producto = await this.productRepository.findOne({
+    const producto = await this.prisma.product.findUnique({
       where: { id },
-      relations: { images: true, reviews: { profile: true, images: true } },
+      include: {
+        images: true,
+        reviews: {
+          include: {
+            profile: true,
+            images: true,
+          },
+        },
+      },
     });
     if (!producto) {
       throw new NotFoundException(`Producto con ID ${id} no encontrado`);
@@ -140,48 +131,62 @@ export class ProductsService {
     return producto;
   }
 
-  async update(id: number, updateProductDto: UpdateProductDto): Promise<Product> {
-    const producto = await this.productRepository.preload({
-      id,
-      ...updateProductDto,
-    });
-    if (!producto) {
-      throw new NotFoundException(`Producto con ID ${id} no encontrado`);
+  async update(
+    id: number,
+    updateProductDto: UpdateProductDto,
+  ): Promise<Product> {
+    try {
+      return await this.prisma.product.update({
+        where: { id },
+        data: updateProductDto,
+      });
+    } catch (error) {
+      if (error.code === 'P2025') {
+        throw new NotFoundException(`Producto con ID ${id} no encontrado`);
+      }
+      throw error;
     }
-    return this.productRepository.save(producto);
   }
 
   async remove(id: number): Promise<void> {
-    const result = await this.productRepository.delete(id);
-    if (result.affected === 0) {
-      throw new NotFoundException(`Producto con ID ${id} no encontrado`);
+    try {
+      await this.prisma.product.delete({ where: { id } });
+    } catch (error) {
+      if (error.code === 'P2025') {
+        throw new NotFoundException(`Producto con ID ${id} no encontrado`);
+      }
+      throw error;
     }
   }
 
   async softRemove(id: number): Promise<Product> {
-    const product = await this.productRepository.findOneBy({ id });
-
-    if (!product) {
-      throw new NotFoundException(`Producto con ID ${id} no encontrado`);
+    try {
+      return await this.prisma.product.update({
+        where: { id },
+        data: { estado: false },
+      });
+    } catch (error) {
+      if (error.code === 'P2025') {
+        throw new NotFoundException(`Producto con ID ${id} no encontrado`);
+      }
+      throw error;
     }
-
-    // Cambiamos el estado en lugar de borrarlo (soft delete)
-    product.estado = false;
-    return this.productRepository.save(product);
   }
 
   async removeImage(imageId: number, productId: number): Promise<void> {
-    // Nota: Esto no elimina el archivo de imagen del almacenamiento (ej. S3).
-    // Se necesitaría una lógica adicional para eso.
-    const result = await this.productImageRepository.delete({
-      id: imageId,
-      productId,
+    const image = await this.prisma.productImage.findFirst({
+      where: { id: imageId, productId },
     });
-    if (result.affected === 0) {
+
+    if (!image) {
       throw new NotFoundException(
-        "Imagen no encontrada o no pertenece al producto.",
+        'Imagen no encontrada o no pertenece al producto.',
       );
     }
+
+    await this.prisma.productImage.delete({
+      where: { id: imageId },
+    });
   }
 
   async updateWithImages(
@@ -189,101 +194,100 @@ export class ProductsService {
     dto: UpdateProductDto,
     files?: Express.Multer.File[],
   ): Promise<Product> {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
+    return this.prisma.$transaction(async (tx) => {
+      try {
+        await tx.product.update({
+          where: { id },
+          data: dto,
+        });
 
-    try {
-      // NOTA: Al usar multipart/form-data, los tipos numéricos pueden llegar como strings.
-      // Un ValidationPipe con `transform: true` es un mejor lugar para manejar esta conversión.
-      // Al habilitar la transformación en el ValidationPipe global y usar @Type(() => Number) en el DTO,
-      // esta conversión manual ya no es necesaria.
+        if (files?.length) {
+          const maxOrderResult = await tx.productImage.aggregate({
+            where: { productId: id },
+            _max: { orden: true },
+          });
+          const startOrder = (maxOrderResult._max.orden ?? -1) + 1;
 
-      const producto = await queryRunner.manager.preload(Product, {
-        id,
-        ...dto,
-      });
+          await Promise.all(
+            files.map(async (file, idx) => {
+              const url = await this.uploadImageService.uploadFileImage(file);
+              return tx.productImage.create({
+                data: {
+                  url,
+                  orden: startOrder + idx,
+                  productId: id,
+                },
+              });
+            }),
+          );
+        }
 
-      if (!producto) {
-        throw new NotFoundException(`Producto con ID ${id} no encontrado`);
+        const updatedProduct = await tx.product.findUnique({
+          where: { id },
+          include: {
+            images: true,
+            reviews: {
+              include: {
+                profile: true,
+                images: true,
+              },
+            },
+          },
+        });
+
+        if (!updatedProduct)
+          throw new NotFoundException(`Producto con ID ${id} no encontrado`);
+        return updatedProduct;
+      } catch (error) {
+        if (error.code === 'P2025') {
+          throw new NotFoundException(`Producto con ID ${id} no encontrado`);
+        }
+        throw error;
       }
-      await queryRunner.manager.save(producto);
-
-      if (files?.length) {
-        const maxOrderResult = await queryRunner.manager
-          .createQueryBuilder(ProductImage, "img")
-          .select("MAX(img.orden)", "max_orden")
-          .where("img.productId = :productId", { productId: id })
-          .getRawOne();
-        const startOrder = (maxOrderResult?.max_orden ?? -1) + 1;
-
-        await Promise.all(
-          files.map(async (file, idx) => {
-            const url = await this.uploadImageService.uploadFileImage(file);
-            const img = this.productImageRepository.create({
-              url,
-              orden: startOrder + idx,
-              productId: id,
-            });
-            return queryRunner.manager.save(img);
-          }),
-        );
-      }
-
-      await queryRunner.commitTransaction();
-      // Recargar la entidad para devolverla con todas las relaciones actualizadas
-      return this.findOne(id);
-    } catch (error) {
-      this.logger.error(
-        `Error al actualizar el producto ${id}: ${error.message}`,
-        error.stack,
-      );
-      await queryRunner.rollbackTransaction();
-      throw error;
-    } finally {
-      await queryRunner.release();
-    }
+    });
   }
 
-  // Tu método optimizado, agregando relations para imágenes
   async get18RandomByCategoryOptimized(categoria: string): Promise<Product[]> {
     if (!categoria) return [];
 
-    const idsResult = await this.productRepository
-      .createQueryBuilder("p")
-      .select("p.id", "id")
-      .where("LOWER(p.categoria) = LOWER(:categoria)", { categoria })
-      .orderBy("RANDOM()")
-      .limit(18)
-      .getRawMany<{ id: number }>();
+    const result = await this.prisma.$queryRaw<Product[]>`
+      SELECT * FROM productos 
+      WHERE LOWER(categoria) = LOWER(${categoria}) 
+      ORDER BY RANDOM() 
+      LIMIT 18
+    `;
 
-    const ids = idsResult.map((r) => r.id).filter(Boolean);
+    const ids = result.map((p) => p.id);
     if (ids.length === 0) return [];
 
-    const productsUnordered = await this.productRepository.find({
-      where: { id: In(ids) },
-      relations: { images: true },
+    return this.prisma.product.findMany({
+      where: { id: { in: ids } },
+      include: { images: true },
     });
-
-    const map = new Map<number, Product>();
-    productsUnordered.forEach((p) => map.set(p.id, p));
-    return ids.map((id) => map.get(id)).filter(Boolean) as Product[];
   }
 
   async findSome(): Promise<any[]> {
-    const products = await this.productRepository.find({
-      where: { estado: true }, // Filtrar solo productos activos
-      relations: { images: true },
+    const products = await this.prisma.product.findMany({
+      where: { estado: true },
+      include: {
+        images: true,
+        category: true, // Incluir la categoría
+      },
     });
 
-    // Retornamos solo la primera imagen de cada producto
     return products.map((p) => ({
       id: p.id,
       nombre: p.nombre,
-      precio: p.precio,
-      categoria: p.categoria,
+      precio: p.precio.toNumber(),
+      categoria: p.category?.name ?? null, // Retornar el nombre de la categoría
       estado: p.estado,
       image: p.images?.length ? p.images[0] : null,
     }));
+  }
+
+  async fetch_products_by_category(id_category: number): Promise<Product[]> {
+    return this.prisma.product.findMany({
+      where: { id_category: id_category },
+    });
   }
 }

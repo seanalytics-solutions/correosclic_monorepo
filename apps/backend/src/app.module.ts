@@ -4,27 +4,25 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { FacturasModule } from './facturas/facturas.module';
 import { PagosModule } from './pagos/pagos.module';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { typeOrmConfig } from './config/typeorm.config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
 import { CreateAccountModule } from './create-account/create-account.module';
 import { RoutesModule } from './routes/routes.module';
 import { ProfileModule } from './profile/profile.module';
 import { ProductsModule } from './products/products.module';
 import { TransactionsModule } from './transactions/transactions.module';
-import { UploadImageModule } from './upload-image/upload-image.module'; 
+import { UploadImageModule } from './upload-image/upload-image.module';
 import { PostalService } from './postal/postal.service';
 import { GuiasTrazabilidadModule } from './guias_trazabilidad/infrastructure/guias_trazabilidad.module';
 import { PostalController } from './postal/postal.controller';
 import { UserModule } from './usuarios/user.module';
-import { AsignacionPaquetesModule } from './asignacion_paquetes/asignacion_paquetes.module'
+import { AsignacionPaquetesModule } from './asignacion_paquetes/asignacion_paquetes.module';
 import { CarritoModule } from './carrito/carrito.module';
 import { FavoritosModule } from './favoritos/favoritos.module';
 import { ConductoresModule } from './conductores/conductores.module';
 import { OrdenModule } from './orden/orden.module';
 import { UnidadesModule } from './unidades/unidades.module';
 import { HistorialAsignacionesModule } from './historial-asignaciones/historial-asignaciones.module';
-import { PaquetesModule } from './paquete/paquetes.module'
+import { PaquetesModule } from './paquete/paquetes.module';
 import { AuthModule } from './auth/auth.module';
 import { ProveedoresModule } from './proveedores/proveedores.module';
 import { OficinasModule } from './oficinas/oficinas.module';
@@ -42,22 +40,24 @@ import { ViewdocModule } from './viewdoc/viewdoc.module';
 import { EjemploUsarGuiasModule } from './ejemploUsarGuias/ejemploUsarGuias.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ReviewModule } from './review/review.module';
-import {PDFGeneratorModule} from './guias_trazabilidad/infrastructure/pdf-generator/pdf-generator.module';
+import { PDFGeneratorModule } from './guias_trazabilidad/infrastructure/pdf-generator/pdf-generator.module';
 import { CouponModule } from './coupons/coupons.module';
+import { ComplaintsModule } from './complaints/complaints.module';
+import { PrismaModule } from './prisma/prisma.module';
+import { CreateSellerModule } from './create_seller/create-seller.module';
+import { CloudflareModule } from './cloudflare/cloudflare.module';
 
 @Module({
   imports: [
-     ConfigModule.forRoot({
-      isGlobal:true,
+    ConfigModule.forRoot({
+      isGlobal: true,
     }),
     ScheduleModule.forRoot(),
-    TypeOrmModule.forRootAsync({
-      useFactory:typeOrmConfig,
-      inject:[ConfigService]
-    }),
+    PrismaModule,
     CreateAccountModule,
+    CloudflareModule,
     RoutesModule,
-    ProfileModule,  
+    ProfileModule,
     PagosModule,
     ProductsModule,
     TransactionsModule,
@@ -69,8 +69,8 @@ import { CouponModule } from './coupons/coupons.module';
     CarritoModule,
     FavoritosModule,
     ConductoresModule,
-    UnidadesModule, 
-    OrdenModule,  
+    UnidadesModule,
+    OrdenModule,
     HistorialAsignacionesModule,
     PaquetesModule,
     AuthModule,
@@ -92,6 +92,8 @@ import { CouponModule } from './coupons/coupons.module';
     ReviewModule,
     PDFGeneratorModule,
     CouponModule,
+    ComplaintsModule,
+    CreateSellerModule,
   ],
   controllers: [AppController, PostalController],
   providers: [AppService, PostalService],

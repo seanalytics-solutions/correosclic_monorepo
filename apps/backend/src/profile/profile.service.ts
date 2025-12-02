@@ -1,30 +1,31 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Profile } from './entities/profile.entity';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateProfileDto } from './dto/create-profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { Profile } from '@prisma/client';
 
 @Injectable()
 export class ProfileService {
   constructor(
-    @InjectRepository(Profile)
-    private readonly profileRepository: Repository<Profile>,
+    private readonly prisma: PrismaService,
   ) {}
 
   async create(createProfileDto: CreateProfileDto) {
-    await this.profileRepository.save(createProfileDto);
+    // Note: Ensure createProfileDto has all required fields for Prisma
+    await this.prisma.profile.create({
+      data: createProfileDto as any,
+    });
     return { message: 'Perfil creado correctamente' };
   }
 
   async findAll() {
-    return this.profileRepository.find({
-      order: { id: 'DESC' },
+    return this.prisma.profile.findMany({
+      orderBy: { id: 'desc' },
     });
   }
 
   async findOne(id: number) {
-    const perfil = await this.profileRepository.findOne({ where: { id } });
+    const perfil = await this.prisma.profile.findUnique({ where: { id } });
 
     if (!perfil) {
       throw new NotFoundException('El perfil no existe');
@@ -40,25 +41,35 @@ export class ProfileService {
   }
 
   async update(id: number, dto: UpdateProfileDto) {
-    const perfil = await this.findOne(id);
-    Object.assign(perfil, dto);
-    await this.profileRepository.save(perfil);
+    await this.prisma.profile.update({
+      where: { id },
+      data: dto,
+    });
     return { ok: true, message: 'Perfil actualizado correctamente' };
   }
 
   async remove(id: number) {
-    const perfil = await this.findOne(id);
-    await this.profileRepository.remove(perfil);
+    await this.prisma.profile.delete({ where: { id } });
     return { message: 'Perfil eliminado correctamente' };
   }
 
   async save(profile: Profile): Promise<Profile> {
-    return this.profileRepository.save(profile);
+    if (profile.id) {
+      return this.prisma.profile.update({
+        where: { id: profile.id },
+        data: profile,
+      });
+    } else {
+      return this.prisma.profile.create({
+        data: profile as any,
+      });
+    }
   }
 
   async updateAvatar(id: number, url: string): Promise<Profile> {
-    const perfil = await this.findOne(id);
-    perfil.imagen = url;
-    return this.profileRepository.save(perfil);
+    return this.prisma.profile.update({
+      where: { id },
+      data: { imagen: url },
+    });
   }
 }

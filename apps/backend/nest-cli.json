@@ -8,6 +8,10 @@
       {
         "include": "guias_trazabilidad/infrastructure/pdf-generator/plantillas/*/",
         "watchAssets": true
+      },
+      {
+        "include": "codigos_postales.txt",
+        "watchAssets": true
       }
     ],
     "watchAssets": true

@@ -30,6 +30,7 @@ export class GuiaMapper {
     ormEntity.fecha_creacion = guiaDomainEntity.fechaCreacion;
     ormEntity.fecha_actualizacion = guiaDomainEntity.fechaActualizacion;
     ormEntity.fecha_entrega_estimada = guiaDomainEntity.fechaEntregaEstimada;
+    ormEntity.profile_id = guiaDomainEntity.ProfileId ?? null;
 
     return ormEntity;
   }
@@ -75,10 +76,10 @@ export class GuiaMapper {
         alto: guiaDomainEntity.Embalaje.getAltoCm.toString(),
         ancho: guiaDomainEntity.Embalaje.getAnchoCm.toString(),
         largo: guiaDomainEntity.Embalaje.getLargoCm.toString(),
-        peso: guiaDomainEntity.Embalaje.getPeso.toString()
+        peso: guiaDomainEntity.Embalaje.getPeso.toString(),
       },
-      valorDeclarado: guiaDomainEntity.ValorDeclarado.getValorDeclarado
-    }
+      valorDeclarado: guiaDomainEntity.ValorDeclarado.getValorDeclarado,
+    };
     return pdfPayload;
   }
 }

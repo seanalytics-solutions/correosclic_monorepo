@@ -1,13 +1,12 @@
 import { Module } from '@nestjs/common';
 import { CreateAccountService } from './create-account.service';
 import { CreateAccountController } from './create-account.controller';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { CreateAccount } from './entities/create-account.entity';
 import { EnviarCorreosService } from '../enviar-correos/enviar-correos.service';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([CreateAccount])],
+  imports: [PrismaModule],
   controllers: [CreateAccountController],
-  providers: [CreateAccountService, EnviarCorreosService, TypeOrmModule],
+  providers: [CreateAccountService, EnviarCorreosService],
 })
 export class CreateAccountModule {}

@@ -70,7 +70,7 @@ export default function TarifasPage() {
         if (incluirAcuse) costoAdicionales += COSTO_ACUSE_RECIBO;
 
         costoTotal += costoAdicionales;
-
+        //@ts-expect-error -- Tipo any para resultado
         setResultado(prev => ({
             ...prev,
             pesoVolumetrico: volumen.toFixed(2),

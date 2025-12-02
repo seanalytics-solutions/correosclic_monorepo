@@ -1,85 +1,114 @@
-import { Injectable } from "@nestjs/common";
-import { InjectDataSource, InjectRepository } from "@nestjs/typeorm";
-import { GuiaRepositoryInterface } from "../../../application/ports/outbound/guia.repository.interface";
-import { DataSource, Repository } from "typeorm";
-import { GuiaDomainEntity } from "../../../business-logic/guia.domain-entity-root";
-import { GuiaTypeormEntity } from "../typeorm-entities/guia.typeorm-entity";
-import { GuiaMapper } from "../../mappers/guia.mapper";
-import { ContactosTypeormEntity } from "../typeorm-entities/contactos.typeorm-entity";
-import { ContactoMapper } from "../../mappers/contacto.mapper";
-import { MovimientoGuiasTypeormEntity } from "../typeorm-entities/movimientos-guias.typeorm-entity";
-import { MovimientoMapper } from "../../mappers/movimiento.mapper";
-import { NumeroDeRastreoVO } from "../../../business-logic/value-objects/numeroRastreo.vo";
-import { IncidenciaMapper } from "../../mappers/incidencia.mapper";
-import { IncidenciasTypeormEntity } from "../typeorm-entities/incidencias.typeorm-entity";
+import { Injectable } from '@nestjs/common';
+import { GuiaRepositoryInterface } from '../../../application/ports/outbound/guia.repository.interface';
+import { GuiaDomainEntity } from '../../../business-logic/guia.domain-entity-root';
+import { GuiaMapper } from '../../mappers/guia.mapper';
+import { ContactoMapper } from '../../mappers/contacto.mapper';
+import { MovimientoMapper } from '../../mappers/movimiento.mapper';
+import { NumeroDeRastreoVO } from '../../../business-logic/value-objects/numeroRastreo.vo';
+import { IncidenciaMapper } from '../../mappers/incidencia.mapper';
+import { PrismaService } from '../../../../prisma/prisma.service';
 
 @Injectable()
 export class GuiaRepository implements GuiaRepositoryInterface {
+  constructor(private readonly prisma: PrismaService) {}
 
-    constructor(
-        @InjectRepository(GuiaTypeormEntity)
-        private readonly guiaRepository: Repository<GuiaTypeormEntity>,
+  async save(guia: GuiaDomainEntity): Promise<void> {
+    const remitenteOrm = ContactoMapper.toOrm(guia.Remitente);
+    const destinatarioOrm = ContactoMapper.toOrm(guia.Destinatario);
+    const guiaOrm = GuiaMapper.toOrm(guia);
 
-        @InjectRepository(ContactosTypeormEntity)
-        private readonly contactosRepository: Repository<ContactosTypeormEntity>,
+    await this.prisma.$transaction(async (tx) => {
+      // Upsert remitente
+      await tx.contactoGuia.upsert({
+        where: { id_contacto: remitenteOrm.id_contacto },
+        update: { ...remitenteOrm },
+        create: { ...remitenteOrm },
+      });
 
-        @InjectRepository(MovimientoGuiasTypeormEntity)
-        private readonly movimientoGuiaRepository: Repository<MovimientoGuiasTypeormEntity>,
+      // Upsert destinatario
+      await tx.contactoGuia.upsert({
+        where: { id_contacto: destinatarioOrm.id_contacto },
+        update: { ...destinatarioOrm },
+        create: { ...destinatarioOrm },
+      });
 
-        @InjectRepository(IncidenciasTypeormEntity)
-        private readonly incidenciaRepository: Repository<IncidenciasTypeormEntity>,
+      // Upsert guia
+      // Remove relation objects to avoid Prisma errors
+      const { remitente, destinatario, ...guiaData } = guiaOrm;
+      const guiaInput = {
+        ...guiaData,
+        id_remitente: remitenteOrm.id_contacto,
+        id_destinatario: destinatarioOrm.id_contacto,
+      };
 
-        @InjectDataSource()
-        private readonly dataSource: DataSource
-    ) { }
+      await tx.guia.upsert({
+        where: { id_guia: guiaInput.id_guia },
+        update: guiaInput,
+        create: guiaInput,
+      });
 
-    async save(guia: GuiaDomainEntity): Promise<void> {
-        await this.dataSource.transaction(async (EntityManager) => {
-            const remitenteOrmEntity = ContactoMapper.toOrm(guia.Remitente)
-            await this.contactosRepository.save(remitenteOrmEntity)
+      if (guia.UltimoMovimiento) {
+        const movimientoOrm = MovimientoMapper.toOrm(guia.UltimoMovimiento);
+        movimientoOrm.id_guia = guiaOrm.id_guia;
 
-            const destinatarioOrmEntity = ContactoMapper.toOrm(guia.Destinatario)
-            await this.contactosRepository.save(destinatarioOrmEntity)
+        const { guia: _guiaMov, ...movimientoData } = movimientoOrm;
 
-            const guiaOrmEntity = GuiaMapper.toOrm(guia)
-            await this.guiaRepository.save(guiaOrmEntity)
+        await tx.movimientoGuia.upsert({
+          where: { id_movimiento: movimientoData.id_movimiento },
+          update: movimientoData,
+          create: movimientoData,
+        });
+      }
 
-            if (guia.UltimoMovimiento) {
-                const movimientoOrmEntity = MovimientoMapper.toOrm(guia.UltimoMovimiento)
-                movimientoOrmEntity.id_guia = guiaOrmEntity.id_guia // TODO: refactorizar como en la incidencia, que acepta 2 parametros
-                await this.movimientoGuiaRepository.save(movimientoOrmEntity)
-            }
+      if (guia.incidencia) {
+        const incidenciaOrm = IncidenciaMapper.toOrm(
+          guia.incidencia,
+          guia.Id.getId,
+        );
 
-            if (guia.incidencia) {
-                const incidenciaOrmEntity = IncidenciaMapper.toOrm(guia.incidencia, guia.Id.getId);
-                await this.incidenciaRepository.save(incidenciaOrmEntity);
-            }
-        })
+        const { guia: _guiaInc, ...incidenciaData } = incidenciaOrm;
+
+        await tx.incidenciaGuia.upsert({
+          where: { id_incidencia: incidenciaData.id_incidencia },
+          update: incidenciaData,
+          create: incidenciaData,
+        });
+      }
+    });
+  }
+
+  async actualizarKeyPdf(numeroRastreo: string, keyPdf: string): Promise<void> {
+    await this.prisma.guia.update({
+      where: { numero_de_rastreo: numeroRastreo },
+      data: { key_pdf: keyPdf },
+    });
+  }
+
+  async findByNumeroRastreo(
+    numeroRastreo: NumeroDeRastreoVO,
+  ): Promise<GuiaDomainEntity | null> {
+    const guiaOrm = await this.prisma.guia.findUnique({
+      where: { numero_de_rastreo: numeroRastreo.getNumeroRastreo },
+      include: {
+        remitente: true,
+        destinatario: true,
+      },
+    });
+
+    if (!guiaOrm) {
+      return null;
     }
 
-    async findByNumeroRastreo(numeroRastreo: NumeroDeRastreoVO): Promise<GuiaDomainEntity | null> {
-        return await this.dataSource.transaction(async (EntityManager) => {
-            const guiaOrmEntity = await EntityManager.findOne(GuiaTypeormEntity, {
-                where: { numero_de_rastreo: numeroRastreo.getNumeroRastreo },
-                relations: ['remitente', 'destinatario']
-            });
+    const movimientoOrm = await this.prisma.movimientoGuia.findFirst({
+      where: { id_guia: guiaOrm.id_guia },
+      orderBy: { fecha_movimiento: 'desc' },
+    });
 
-            if (!guiaOrmEntity) {
-                return null
-                throw new Error("No se encontro ninguna guia")
-            };
-
-            const movimientoOrmEntity = await EntityManager.findOne(MovimientoGuiasTypeormEntity, {
-                where: { id_guia: guiaOrmEntity.id_guia },
-                order: { fecha_movimiento: 'DESC' } // el mas nuevecito
-            });
-
-            return GuiaMapper.toDomain(
-                guiaOrmEntity,
-                guiaOrmEntity.remitente,
-                guiaOrmEntity.destinatario,
-                movimientoOrmEntity ?? undefined
-            )
-        })
-    }
+    return GuiaMapper.toDomain(
+      guiaOrm as any,
+      guiaOrm.remitente as any,
+      guiaOrm.destinatario as any,
+      (movimientoOrm as any) ?? undefined,
+    );
+  }
 }

@@ -9,7 +9,8 @@ export interface GuiaReadModel {
   ancho_cm: number;
   fecha_creacion: Date;
   fecha_entrega_estimada: Date;
-  
+  key_pdf: string;
+
   // remitente (datos desnormalizados para eficiencia)
   remitente_nombres: string;
   remitente_apellidos: string;
@@ -18,7 +19,7 @@ export interface GuiaReadModel {
   remitente_ciudad: string;
   remitente_estado: string;
   remitente_cp: string;
-  
+
   // destinatario
   destinatario_nombres: string;
   destinatario_apellidos: string;
@@ -27,7 +28,7 @@ export interface GuiaReadModel {
   destinatario_ciudad: string;
   destinatario_estado: string;
   destinatario_cp: string;
-  
+
   // ultimo movimiento
   ultimo_estado?: string;
   ultima_localizacion?: string;
@@ -93,4 +94,4 @@ export interface ContactoReadModel {
   estado: string;
   codigo_postal: string;
   id_usuario?: string;
-} 
+}
