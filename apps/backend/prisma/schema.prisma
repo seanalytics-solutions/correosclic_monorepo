@@ -17,16 +17,15 @@ model User {
 }
 
 model Usuarios {
-  id             Int       @id @default(autoincrement())
-  nombre         String?
-  apellido       String?
-  correo         String    @unique
-  password       String    @map("contrasena")
-  confirmado     Boolean   @default(false)
-  token          String?
-  tokenCreatedAt DateTime? @default(now()) @map("token_created_at")
-  rol            String    @default("usuario")
-
+  id                 Int                 @id @default(autoincrement())
+  nombre             String?
+  apellido           String?
+  correo             String              @unique
+  password           String              @map("contrasena")
+  confirmado         Boolean             @default(false)
+  token              String?
+  tokenCreatedAt     DateTime?           @default(now()) @map("token_created_at")
+  rol                String              @default("usuario")
   profile            Profile?
   giftedCoupons      GiftedCoupon[]
   solicitudVendedors SolicitudVendedor[]
@@ -70,6 +69,7 @@ model Profile {
   productosFavoritos Product[] @relation("Favoritos")
 
   facturas        Factura[]
+  guias           Guia[]
   transactions    Transaction[]
   favoritos       Favorito[]
   complaints      Complaint[]
@@ -525,6 +525,8 @@ model Guia {
   id_destinatario String?
   destinatario    ContactoGuia? @relation("Destinatario", fields: [id_destinatario], references: [id_contacto])
 
+  profile_id  Int?
+  profile     Profile?         @relation(fields: [profile_id], references: [id])
   envios      Envio[]
   movimientos MovimientoGuia[]
   incidencias IncidenciaGuia[]

@@ -13,6 +13,7 @@ export interface GuiaReadRepositoryInterface {
   findAllGuias(): Promise<GuiaListReadModel[]>;
   findAllIncidencias(): Promise<IncidenciaReadModel[]>;
   findAllContactos(): Promise<ContactoReadModel[]>;
+  findByProfileId(profileId: number): Promise<GuiaListReadModel[]>;
 }
 
 export const GUIA_READ_REPOSITORY = Symbol('GuiaReadRepository');

@@ -23,6 +23,7 @@ export class GuiaReadRepository implements GuiaReadRepositoryInterface {
           g.situacion_actual,
           g.valor_declarado,
           g.peso_kg,
+          g.key_pdf,
           CONCAT(g.alto_cm, 'x', g.largo_cm, 'x', g.ancho_cm, ' cm') as dimensiones,
           g.fecha_creacion,
           g.fecha_entrega_estimada,
@@ -80,7 +81,7 @@ export class GuiaReadRepository implements GuiaReadRepositoryInterface {
       GROUP BY 
         gi.id_guia, gi.numero_de_rastreo, gi.situacion_actual, 
         gi.remitente_nombre, gi.destinatario_nombre, gi.valor_declarado,
-        gi.peso_kg, gi.dimensiones, gi.fecha_creacion, gi.fecha_entrega_estimada;
+        gi.peso_kg, gi.key_pdf, gi.dimensiones, gi.fecha_creacion, gi.fecha_entrega_estimada;
     `;
 
     const result = await this.prisma.$queryRawUnsafe<TrazabilidadReadModel[]>(
@@ -88,6 +89,40 @@ export class GuiaReadRepository implements GuiaReadRepositoryInterface {
       numeroRastreo,
     );
     return Array.isArray(result) && result.length > 0 ? result[0] : null;
+  }
+
+  async findByProfileId(profileId: number): Promise<GuiaListReadModel[]> {
+    const query = `
+    SELECT 
+      g.numero_de_rastreo,
+      g.situacion_actual,
+      g.fecha_creacion,
+      g.valor_declarado,
+      g.peso_kg,
+      g.key_pdf,
+      rem.nombres || ' ' || rem.apellidos as remitente,
+      dest.nombres || ' ' || dest.apellidos as destinatario,
+      dest.localidad as ciudad_destino,
+      dest.estado as estado_destino,
+      m.ultimo_estado,
+      m.fecha_ultimo_movimiento
+    FROM guias g
+    LEFT JOIN contactos_guias rem ON g.id_remitente = rem.id_contacto
+    LEFT JOIN contactos_guias dest ON g.id_destinatario = dest.id_contacto
+    LEFT JOIN LATERAL (
+      SELECT 
+        estado as ultimo_estado, 
+        fecha_movimiento as fecha_ultimo_movimiento
+      FROM movimientos_guias mg 
+      WHERE mg.id_guia = g.id_guia
+      ORDER BY mg.fecha_movimiento DESC
+      LIMIT 1
+    ) m ON true
+    WHERE g.profile_id = $1
+    ORDER BY g.fecha_creacion DESC;
+  `;
+
+    return await this.prisma.$queryRawUnsafe(query, profileId);
   }
 
   async findAllGuias(): Promise<GuiaListReadModel[]> {

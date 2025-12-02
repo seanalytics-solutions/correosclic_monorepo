@@ -13,6 +13,7 @@ import { ObtenerGuiaPorNumeroQueryHandler } from '../application/use-cases/obten
 import { ListarGuiasQueryHandler } from '../application/use-cases/listar-guias/listar-guias.handler';
 import { ListarIncidenciasQueryHandler } from '../application/use-cases/listar-incidencias/listar-incidencias.handler';
 import { ListarContactosQueryHandler } from '../application/use-cases/listar-contactos/listar-contactos.handler';
+import { ListarGuiasPorUsuarioQueryHandler } from '../application/use-cases/listar-guias-usuario/listar-guias-usuario.handler';
 
 // Controllers
 import { GuiaController } from './controllers/guia.controller';
@@ -50,6 +51,7 @@ import { CloudflareModule } from '../../cloudflare/cloudflare.module'; // ← Ag
     ListarGuiasQueryHandler,
     ListarIncidenciasQueryHandler,
     ListarContactosQueryHandler,
+    ListarGuiasPorUsuarioQueryHandler,
 
     // Providers
     AWSProvider,

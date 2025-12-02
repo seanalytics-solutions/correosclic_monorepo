@@ -30,6 +30,8 @@ import { ListarIncidenciasQuery } from '../../application/use-cases/listar-incid
 import { ListarContactosQuery } from '../../application/use-cases/listar-contactos/listar-contactos.query';
 import { CrearQRDto } from '../../../guias_trazabilidad/application/use-cases/crear-QR-guia-terminal/dtos/crear-qr.dto';
 import { CrearQRCommand } from '../../../guias_trazabilidad/application/use-cases/crear-QR-guia-terminal/crear-qr.command';
+import { CloudflareService } from '../../../cloudflare/cloudflare.service';
+import { ListarGuiasPorUsuarioQuery } from '../../application/use-cases/listar-guias-usuario/listar-guias-usuario.query';
 
 @ApiTags('Guías')
 @Controller('guias')
@@ -37,6 +39,7 @@ export class GuiaController {
   constructor(
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
+    private readonly cloudflareService: CloudflareService,
   ) {}
 
   // !============= COMMANDS =============
@@ -221,8 +224,56 @@ export class GuiaController {
       throw new NotFoundException(result.getError());
     }
 
+    const guia = result.getValue();
+
+    // Generar URL firmada si existe key_pdf
+    const pdfUrl = guia.key_pdf
+      ? await this.cloudflareService.getSignedUrl(guia.key_pdf)
+      : null;
+
     return {
-      data: result.getValue(),
+      data: {
+        ...guia,
+        pdf_url: pdfUrl,
+      },
+      status: 'ok',
+    };
+  }
+
+  @Get('/usuario/:profileId')
+  @ApiOperation({ summary: 'Lista todas las guías de un usuario' })
+  @ApiParam({
+    name: 'profileId',
+    description: 'ID del perfil del usuario',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de guías del usuario obtenida correctamente',
+  })
+  async listarGuiasPorUsuario(@Param('profileId') profileId: string) {
+    const query = new ListarGuiasPorUsuarioQuery(parseInt(profileId, 10));
+    const result = await this.queryBus.execute(query);
+
+    if (result.isFailure()) {
+      throw new BadRequestException(result.getError());
+    }
+
+    const guias = result.getValue();
+
+    // Agregar URL firmada a cada guía
+    const guiasConUrl = await Promise.all(
+      guias.map(async (guia: any) => ({
+        ...guia,
+        pdf_url: guia.key_pdf
+          ? await this.cloudflareService.getSignedUrl(guia.key_pdf)
+          : null,
+      })),
+    );
+
+    return {
+      data: guiasConUrl,
+      total: guiasConUrl.length,
       status: 'ok',
     };
   }
