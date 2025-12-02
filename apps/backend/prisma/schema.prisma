@@ -28,6 +28,8 @@ model Usuarios {
   rol                String              @default("usuario")
   profile            Profile?
   giftedCoupons      GiftedCoupon[]
+  CuponUsuario       CuponUsuario[]
+  usosCupon          UsoCupon[]
   solicitudVendedors SolicitudVendedor[]
   products           Product[]
 
@@ -138,26 +140,53 @@ enum CuponesEstadoEnum {
 }
 
 model Cupon {
-  id                   Int               @id @default(autoincrement())
-  codigo               String            @unique @db.VarChar(50)
-  descripcion          String            @db.VarChar(200)
-  tipo                 CuponesTipoEnum   @default(porcentaje)
-  valor                Decimal           @db.Decimal(10, 2)
-  montoMinimo          Decimal           @default(0) @map("monto_minimo") @db.Decimal(10, 2)
-  descuentoMaximo      Decimal?          @map("descuento_maximo") @db.Decimal(10, 2)
-  usosMaximos          Int               @default(1) @map("usos_maximos")
-  usosActuales         Int               @default(0) @map("usos_actuales")
-  fechaExpiracion      DateTime?         @map("fecha_expiracion")
-  estado               CuponesEstadoEnum @default(activo)
-  fechaCreacion        DateTime          @default(now()) @map("fecha_creacion")
-  fechaActualizacion   DateTime          @default(now()) @updatedAt @map("fecha_actualizacion")
-  usuarioCreadorId     Int?              @map("usuario_creador_id")
-  usoUnicoPorUsuario   Boolean           @default(false) @map("uso_unico_por_usuario")
-  categoriasAplicables Json?             @map("categorias_aplicables")
-  productosAplicables  Json?             @map("productos_aplicables")
-  giftedCoupons        GiftedCoupon[]
+  id                    Int               @id @default(autoincrement())
+  codigo                String            @unique @db.VarChar(50)
+  descripcion           String            @db.VarChar(200)
+  tipo                  CuponesTipoEnum   @default(porcentaje)
+  valor                 Decimal           @db.Decimal(10, 2)
+  montoMinimo           Decimal           @default(0) @map("monto_minimo") @db.Decimal(10, 2)
+  descuentoMaximo       Decimal?          @map("descuento_maximo") @db.Decimal(10, 2)
+  usosMaximosGlobal     Int?              @map("usos_maximos_global") // null = ilimitado
+  usosMaximosPorUsuario Int               @default(1) @map("usos_maximos_por_usuario")
+  fechaInicio           DateTime?         @map("fecha_inicio")
+  fechaExpiracion       DateTime?         @map("fecha_expiracion")
+  estado                CuponesEstadoEnum @default(activo)
+  fechaCreacion         DateTime          @default(now()) @map("fecha_creacion")
+  giftedCoupons         GiftedCoupon[]
+
+  // Relaciones
+  usosCupon      UsoCupon[] // Registro de cada uso
+  cuponesUsuario CuponUsuario[] // Cupones asignados a usuarios
 
   @@map("cupones")
+}
+
+model CuponUsuario {
+  id            Int      @id @default(autoincrement())
+  cuponId       Int      @map("cupon_id")
+  cupon         Cupon    @relation(fields: [cuponId], references: [id])
+  usuarioId     Int      @map("usuario_id")
+  usuario       Usuarios @relation(fields: [usuarioId], references: [id])
+  fechaAsignado DateTime @default(now()) @map("fecha_asignado")
+  usosRestantes Int      @default(1) @map("usos_restantes")
+
+  @@unique([cuponId, usuarioId]) // Un usuario solo puede tener un registro por cupón
+  @@map("cupones_usuarios")
+}
+
+model UsoCupon {
+  id                Int      @id @default(autoincrement())
+  cuponId           Int      @map("cupon_id")
+  cupon             Cupon    @relation(fields: [cuponId], references: [id])
+  usuarioId         Int      @map("usuario_id")
+  usuario           Usuarios @relation(fields: [usuarioId], references: [id])
+  pedidoId          Int      @map("pedido_id")
+  pedido            Pedido   @relation(fields: [pedidoId], references: [id])
+  descuentoAplicado Decimal  @map("descuento_aplicado") @db.Decimal(10, 2)
+  fechaUso          DateTime @default(now()) @map("fecha_uso")
+
+  @@map("usos_cupones")
 }
 
 model ProductImage {
@@ -192,6 +221,7 @@ model Pedido {
   complaints           Complaint[]
   historialAsignacions HistorialAsignacion[]
   factura              Factura?
+  usosCupon            UsoCupon[]
 
   @@map("pedido")
 }

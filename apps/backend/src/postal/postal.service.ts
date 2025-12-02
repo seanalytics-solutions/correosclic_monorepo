@@ -11,7 +11,7 @@ export class PostalService {
   }
 
   private loadData() {
-    // Es así para el deploy en Vercel
+    // Es así para el deploy en Verce
     const filePath = path.resolve(__dirname, '../codigos_postales.txt');
 
     //Así va a ser para trabajar en esta en local
