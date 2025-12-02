@@ -19,6 +19,7 @@ import * as Sharing from "expo-sharing";
 import { fromByteArray } from "base64-js";
 import Constants from "expo-constants";
 import CheckoutButton from "../../../components/Boton-pago-tariffador/CheckoutButton";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const GuiaFormulario = ({ route, navigation }) => {
   // 🎯 FIX: Se desestructura el objeto 'route.params' para acceder a los datos
@@ -155,6 +156,8 @@ const GuiaFormulario = ({ route, navigation }) => {
         ? `${API_URL}/api/guias/generar-pdf-internacional`
         : `${API_URL}/api/guias/generar-pdf-nacional`;
 
+    const userId = await AsyncStorage.getItem("userId");
+
     const datosGuia = {
       remitente,
       destinatario,
@@ -162,7 +165,7 @@ const GuiaFormulario = ({ route, navigation }) => {
       peso: pesoFloat,
       valorDeclarado: parseFloat(valorDeclarado) || 0,
       // Se agregan datos necesarios para el backend (e.g., para referencia o facturación)
-      profileId: profileId,
+      profileId: userId,
       costoTotal: costoTotal,
       // Pasa la zona, solo si existe y es nacional, como referencia
       zona:

@@ -119,6 +119,11 @@ export default function ProfileUser({
           icon: "file-text",
           to: "HistorialDeFacturas",
         },
+        {
+          label: "Guía de Pagos",
+          icon: "file-text",
+          to: "GuiaDePagos",
+        },
       ],
     },
     {
