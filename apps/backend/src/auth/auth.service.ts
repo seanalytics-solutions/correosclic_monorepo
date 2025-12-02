@@ -111,43 +111,58 @@ export class AuthService {
     let user;
 
     if (!proveedor) {
-      // Crear cliente en Stripe
-      const Stripe = require('stripe');
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-        apiVersion: '2025-06-30.basil',
-      });
-      const customer = await stripe.customers.create({
-        name: dto.nombre || dto.correo.split('@')[0],
-        email: dto.correo,
-      });
+      // Primero verificar si ya existe un usuario con este correo
+      const existingUser = await this.usuariosService.findByCorreo(dto.correo);
 
-      const profile = {
-        nombre: dto.nombre || dto.correo.split('@')[0],
-        apellido: '',
-        numero: '',
-        estado: '',
-        ciudad: '',
-        fraccionamiento: '',
-        calle: '',
-        codigoPostal: '',
-        stripeCustomerId: customer.id,
-      };
+      if (existingUser) {
+        // Usuario existe, solo vincular el proveedor OAuth
+        user = existingUser;
 
-      user = await this.usuariosService.create({
-        nombre: dto.nombre || dto.correo.split('@')[0],
-        correo: dto.correo,
-        password: 'N/A: OAuth', // Marcador para saber que es OAuth
-        rol: 'usuario',
-        confirmado: true, // OAuth suele implicar email verificado
-        profile,
-      });
+        proveedor = await this.proveedoresService.create({
+          proveedor: dto.proveedor,
+          sub: dto.sub,
+          id_usuario: user.id,
+          correo_asociado: dto.correo,
+        });
+      } else {
+        // Usuario no existe, crear nuevo usuario con OAuth
+        const Stripe = require('stripe');
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+          apiVersion: '2025-06-30.basil',
+        });
+        const customer = await stripe.customers.create({
+          name: dto.nombre || dto.correo.split('@')[0],
+          email: dto.correo,
+        });
 
-      proveedor = await this.proveedoresService.create({
-        proveedor: dto.proveedor,
-        sub: dto.sub,
-        id_usuario: user.id,
-        correo_asociado: dto.correo,
-      });
+        const profile = {
+          nombre: dto.nombre || dto.correo.split('@')[0],
+          apellido: '',
+          numero: '',
+          estado: '',
+          ciudad: '',
+          fraccionamiento: '',
+          calle: '',
+          codigoPostal: '',
+          stripeCustomerId: customer.id,
+        };
+
+        user = await this.usuariosService.create({
+          nombre: dto.nombre || dto.correo.split('@')[0],
+          correo: dto.correo,
+          password: 'N/A: OAuth',
+          rol: 'usuario',
+          confirmado: true,
+          profile,
+        });
+
+        proveedor = await this.proveedoresService.create({
+          proveedor: dto.proveedor,
+          sub: dto.sub,
+          id_usuario: user.id,
+          correo_asociado: dto.correo,
+        });
+      }
     } else {
       user = await this.usuariosService.findById(proveedor.id_usuario);
     }
