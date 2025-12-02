@@ -28,7 +28,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         ],
       },
       config: {
-        googleMapsApiKey: "AIzaSyCPZIMEqvZ9uPX-dmlY-FGY1ahKQ1BRDmU",
+        googleMapsApiKey: "AIzaSyButMoZPZ-gQwBGtbVd8nOesfKCssnD6Sw",
       },
     },
     android: {
@@ -54,7 +54,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       permissions: ["android.permission.CAMERA"],
       config: {
         googleMaps: {
-          apiKey: "AIzaSyCPZIMEqvZ9uPX-dmlY-FGY1ahKQ1BRDmU",
+          apiKey: "AIzaSyButMoZPZ-gQwBGtbVd8nOesfKCssnD6Sw",
         },
       },
     },
