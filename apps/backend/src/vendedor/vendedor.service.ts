@@ -14,45 +14,50 @@ export class VendedorService {
   async crearSolicitud(solicitud: SolicitudDto) {
     console.log('📝 ========== CREANDO SOLICITUD ==========');
     console.log('📝 Solicitud completa:', JSON.stringify(solicitud, null, 2));
-    console.log('📝 userId recibido:', solicitud.userId);
-    console.log('📝 Tipo de userId:', typeof solicitud.userId);
-    console.log('📝 userId convertido a Number:', Number(solicitud.userId));
 
-    // Verificar si el usuario existe antes de crear
+    const idRecibido = Number(solicitud.userId);
+
+    // Primero verificar si es un userId directo
+    let usuarioId: number;
+
     const usuarioExiste = await this.prisma.usuarios.findUnique({
-      where: { id: Number(solicitud.userId) },
+      where: { id: idRecibido },
     });
-    console.log('🔍 ¿Usuario existe?:', usuarioExiste ? 'SÍ' : 'NO');
 
     if (usuarioExiste) {
-      console.log('👤 Usuario encontrado:', {
-        id: usuarioExiste.id,
-        correo: usuarioExiste.correo,
-      });
+      console.log('👤 Es un userId válido:', usuarioExiste.id);
+      usuarioId = usuarioExiste.id;
     } else {
-      // Buscar si es un profileId
-      const profileExiste = await this.prisma.profile.findUnique({
-        where: { id: Number(solicitud.userId) },
-        include: { Usuarios: true },
+      // No es un userId, buscar como profileId
+      const profile = await this.prisma.profile.findUnique({
+        where: { id: idRecibido },
       });
-      console.log('🔍 ¿Es un profileId?:', profileExiste ? 'SÍ' : 'NO');
-      if (profileExiste) {
-        console.log('👤 Profile encontrado:', {
-          profileId: profileExiste.id,
-          userId: profileExiste.usuarioId,
-        });
+
+      if (profile && profile.usuarioId) {
+        console.log('👤 Era un profileId, userId real:', profile.usuarioId);
+        usuarioId = profile.usuarioId;
+      } else {
+        throw new NotFoundException(
+          `No se encontró usuario ni perfil con el ID: ${idRecibido}`,
+        );
       }
     }
 
     const resultado = await this.prisma.solicitudVendedor.create({
       data: {
-        ...solicitud,
-        userId: Number(solicitud.userId),
+        nombre_tienda: solicitud.nombre_tienda,
+        categoria_tienda: solicitud.categoria_tienda,
+        telefono: solicitud.telefono,
+        email: solicitud.email,
+        direccion_fiscal: solicitud.direccion_fiscal,
+        rfc: solicitud.rfc,
+        curp: solicitud.curp,
+        img_uri: solicitud.img_uri,
+        userId: usuarioId, // Ahora siempre es el userId correcto
       },
     });
-    console.log('✅ Solicitud creada:', resultado);
-    console.log('📝 ==========================================');
 
+    console.log('✅ Solicitud creada:', resultado);
     return resultado;
   }
 
