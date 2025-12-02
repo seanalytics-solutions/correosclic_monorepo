@@ -183,13 +183,13 @@ export default function HomeUser() {
     {
       name: "Cotizar un envio",
       image: require("../../../assets/icons_correos_mexico/cotizarEnvio-icon.png"),
-      screen: "TarificadorNacional",
-    },
-    {
-      name: "MEXPOST",
-      image: require("../../../assets/icons_correos_mexico/mexpost-icon.png"),
       screen: "Tarifador",
     },
+    // {
+    //   name: "MEXPOST",
+    //   image: require("../../../assets/icons_correos_mexico/mexpost-icon.png"),
+    //   screen: "Tarifador",
+    // },
     {
       name: "Servicios para empresas",
       image: require("../../../assets/icons_correos_mexico/serviciosEmpresas-icon.png"),
@@ -445,9 +445,9 @@ export default function HomeUser() {
           </ScrollView>
         </View>
 
-        <Text style={styles.locationTitle}>Ubicaciones y Horarios</Text>
+        {/*<Text style={styles.locationTitle}>Ubicaciones y Horarios</Text>*/}
         <View style={styles.locationContainer}>
-          <View style={styles.selectGroup}>
+          {/*<View style={styles.selectGroup}>
             <Text style={styles.selectLabel}>Estado</Text>
             <TouchableOpacity style={styles.selectBox}>
               <Text style={styles.selectPlaceholder}>Selecciona tu estado</Text>
@@ -456,9 +456,9 @@ export default function HomeUser() {
                 style={styles.selectArrow}
               />
             </TouchableOpacity>
-          </View>
+          </View>*/}
 
-          <View style={styles.selectGroup}>
+          {/*<View style={styles.selectGroup}>
             <Text style={styles.selectLabel}>Municipio</Text>
             <TouchableOpacity style={styles.selectBox}>
               <Text style={styles.selectPlaceholder}>
@@ -469,7 +469,7 @@ export default function HomeUser() {
                 style={styles.selectArrow}
               />
             </TouchableOpacity>
-          </View>
+          </View>*/}
 
           <TouchableOpacity
             style={styles.searchButton}
@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     justifyContent: "flex-start",
     alignItems: "center",
-    width: moderateScale(80),
+    width: moderateScale(84),
     marginRight: moderateScale(20),
   },
   circleContainer: {
@@ -657,6 +657,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: moderateScale(4),
     lineHeight: moderateScale(14),
+    flexShrink: 1,
+    includeFontPadding: false,
   },
   vendedorContainer: {
     flexDirection: "column",
@@ -827,16 +829,8 @@ const styles = StyleSheet.create({
   locationContainer: {
     width: "90%",
     alignSelf: "center",
-    backgroundColor: "#faf8f8ff",
-    borderRadius: moderateScale(16),
-    padding: moderateScale(16),
     marginBottom: moderateScale(150),
     marginTop: moderateScale(6),
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 3, height: 3 },
-    shadowRadius: 2,
-    elevation: 2,
   },
 
   locationTitle: {
@@ -901,7 +895,6 @@ const styles = StyleSheet.create({
     fontSize: moderateScale(20),
     fontWeight: "700",
     color: "#121212",
-    marginBottom: moderateScale(16),
     paddingHorizontal: moderateScale(16),
   },
   servicesScrollContent: {

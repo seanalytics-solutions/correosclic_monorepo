@@ -127,6 +127,7 @@ export default function MisCompras() {
           },
         };
       }),
+      invoiceId: p?.factura?.id,
     }));
   };
 
@@ -267,6 +268,8 @@ export default function MisCompras() {
             0,
           );
 
+          console.log(JSON.stringify(tx, null, 2));
+
           return (
             <View key={tx.id} style={styles.compraCard}>
               <Text style={styles.fecha}>
@@ -298,6 +301,7 @@ export default function MisCompras() {
                         precio: Number(item.producto.precio),
                       },
                       cantidad: item.cantidad,
+                      invoiceId: tx?.invoiceId,
                     })
                   }
                   accessibilityRole="button"

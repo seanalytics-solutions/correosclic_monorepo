@@ -55,6 +55,8 @@ import ComoEnviarAtencion from '../screens/usuario/correos-mex-page/atencion-cli
 import Contacto from '../screens/usuario/correos-mex-page/atencion-cliente/Contacto';
 import PreguntasFrecuentes from '../screens/usuario/correos-mex-page/atencion-cliente/PreguntasFrecuentes';
 import HomeTabsSeller from '../components/Tabs/HomeTabsVendedor';
+import DetallesFactura from "../screens/facturas/detalles_facture"
+import GuiasDePago from '../screens/guias/GuiasDePago';
 
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -64,6 +66,7 @@ export default function AppNavigator() {
         <Stack.Navigator initialRouteName="Tabs" screenOptions={{ headerShown: false }}>
             <Stack.Screen name="Tabs" component={HomeTabs} options={{ headerShown: false }} />
             <Stack.Screen name="HomeUser" component={HomeUser} options={{ headerShown: false }} />
+            <Stack.Screen name="GuiaDePagos" component={GuiasDePago} options={{ headerShown: false }} />
             <Stack.Screen name="ProductView" component={ProductView} options={{ headerShown: false }} />
             <Stack.Screen name="ProductsScreen" component={ProductsScreen} options={{ headerShown: false }} />
             <Stack.Screen name="ProfileUser" component={ProfileUser} options={{ headerShown: false }} />
@@ -116,6 +119,7 @@ export default function AppNavigator() {
             <Stack.Screen name="ComoEnviarAtencion" component={ComoEnviarAtencion} />
             <Stack.Screen name="Contacto" component={Contacto} />
             <Stack.Screen name="PreguntasFrecuentes" component={PreguntasFrecuentes} />
+            <Stack.Screen name="DetallesFactura" component={DetallesFactura} />
             <Stack.Screen name="TabsVendedor" component={HomeTabsSeller} options={{ headerShown: false }} />
         </Stack.Navigator>
     );

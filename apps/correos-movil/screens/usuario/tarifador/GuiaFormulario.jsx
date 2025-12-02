@@ -18,10 +18,39 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import { fromByteArray } from "base64-js";
 import Constants from "expo-constants";
+import CheckoutButton from "../../../components/Boton-pago-tariffador/CheckoutButton";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const GuiaFormulario = ({ route, navigation }) => {
-  // Recibe los datos del tarifador
-  const { datosTarifador } = route.params;
+  // 🎯 FIX: Se desestructura el objeto 'route.params' para acceder a los datos
+  // que fueron pasados desde TarificadorMexpost.
+  const { tipoEnvio, costoTotal, detallesCotizacion, profileId } =
+    route.params || {};
+
+  // ⚠️ Validación inicial de datos: Si no hay detalles de cotización, se alerta y regresa.
+  if (!detallesCotizacion) {
+    Alert.alert(
+      "Error de datos",
+      "No se encontraron los detalles de la cotización. Volviendo al tarifador.",
+    );
+    navigation.goBack();
+    return (
+      <ActivityIndicator style={{ flex: 1 }} size="large" color="#e91e63" />
+    ); // Muestra un spinner mientras regresa
+  }
+
+  // Se extraen los datos de la cotización para usarlos en los estados iniciales
+  const {
+    codigoOrigen,
+    codigoDestino,
+    paisDestino, // Solo para referencia, el código CP del destinatario no aplica en intl.
+    peso,
+    alto,
+    ancho,
+    largo,
+    // Puedes extraer más detalles de cotización si los necesitas:
+    // pesoFisico, pesoVolumetrico, iva, tarifaSinIVA, etc.
+  } = detallesCotizacion;
 
   // Estados para remitente y destinatario
   const [remitente, setRemitente] = useState({
@@ -33,10 +62,11 @@ const GuiaFormulario = ({ route, navigation }) => {
       numero: "",
       numeroInterior: "",
       asentamiento: "",
-      codigoPostal: datosTarifador.codigoOrigen || "",
+      // Usamos el CP de origen de la cotización (que es obligatorio)
+      codigoPostal: codigoOrigen || "",
       localidad: "",
       estado: "",
-      pais: "Mexico",
+      pais: "México", // El remitente siempre es de México
     },
   });
 
@@ -49,18 +79,25 @@ const GuiaFormulario = ({ route, navigation }) => {
       numero: "",
       numeroInterior: "",
       asentamiento: "",
-      codigoPostal: datosTarifador.codigoDestino || "",
+      // Usamos el CP de destino de la cotización
+      codigoPostal: codigoDestino || "",
       localidad: "",
       estado: "",
-      pais: "Mexico",
+      // 🎯 Si es internacional, el país es el de destino; si es nacional, es México.
+      pais: tipoEnvio === "Internacional" ? paisDestino : "México",
     },
   });
 
   const [valorDeclarado, setValorDeclarado] = useState("");
   const [loading, setLoading] = useState(false);
+  const [hasPaid, setHasPaid] = useState(false);
+  const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
-  // Validación de campos requeridos
+  // --- Funciones de Lógica de Formulario y API ---
+
+  // Validación de campos requeridos (sin cambios)
   const validarCampos = () => {
+    // ... (Tu lógica de validación actual es correcta)
     const camposRequeridos = [
       { valor: remitente.nombres, nombre: "Nombres del remitente" },
       { valor: remitente.apellidos, nombre: "Apellidos del remitente" },
@@ -101,51 +138,61 @@ const GuiaFormulario = ({ route, navigation }) => {
 
     setLoading(true);
 
-    // Arma el objeto para el backend
+    // 🎯 PAYLOAD: Arma el objeto para el backend
+    // Se utilizan las variables de estado `alto`, `ancho`, `largo` y `peso` extraídas
+    // de `detallesCotizacion` para el envío a la API.
+
     const paquete = {
-      alto_cm: parseFloat(datosTarifador.alto),
-      ancho_cm: parseFloat(datosTarifador.ancho),
-      largo_cm: parseFloat(datosTarifador.largo),
+      alto_cm: parseFloat(alto),
+      ancho_cm: parseFloat(ancho),
+      largo_cm: parseFloat(largo),
     };
 
-    const peso = parseFloat(datosTarifador.peso);
+    const pesoFloat = parseFloat(peso);
+
+    // Se determina el endpoint
+    const endpoint =
+      tipoEnvio === "Internacional"
+        ? `${API_URL}/api/guias/generar-pdf-internacional`
+        : `${API_URL}/api/guias/generar-pdf-nacional`;
+
+    const userId = await AsyncStorage.getItem("userId");
 
     const datosGuia = {
       remitente,
       destinatario,
       paquete,
-      peso,
+      peso: pesoFloat,
       valorDeclarado: parseFloat(valorDeclarado) || 0,
+      // Se agregan datos necesarios para el backend (e.g., para referencia o facturación)
+      profileId: userId,
+      costoTotal: costoTotal,
+      // Pasa la zona, solo si existe y es nacional, como referencia
+      zona:
+        tipoEnvio === "Nacional"
+          ? detallesCotizacion?.datosEnvio?.zona?.nombre
+          : detallesCotizacion?.infoPais?.zona,
     };
 
     console.log("Datos a enviar:", JSON.stringify(datosGuia, null, 2));
 
     try {
-      const API_URL = process.env.EXPO_PUBLIC_API_URL;
-
       if (!API_URL) {
         throw new Error("URL de API no configurada");
       }
 
-      console.log(
-        "Enviando request a:",
-        `${API_URL}/api/guias/generar-pdf-nacional`,
-      );
+      console.log("Enviando request a:", endpoint);
 
-      const response = await fetch(
-        `${API_URL}/api/guias/generar-pdf-nacional`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/pdf",
-          },
-          body: JSON.stringify(datosGuia),
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/pdf",
         },
-      );
+        body: JSON.stringify(datosGuia),
+      });
 
       console.log("Response status:", response.status);
-      console.log("Response headers:", response.headers);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -153,22 +200,14 @@ const GuiaFormulario = ({ route, navigation }) => {
         throw new Error(errorText || `Error del servidor: ${response.status}`);
       }
 
-      // Obtener el PDF como blob
+      // --- Manejo y Compartición del PDF ---
 
       const pdfArrayBuffer = await response.arrayBuffer();
-      console.log("PDF ArrayBuffer size:", pdfArrayBuffer.byteLength);
-
       const uint8Array = new Uint8Array(pdfArrayBuffer);
-
       const base64data = fromByteArray(uint8Array);
-      console.log("Base64 data generado, longitud:", base64data.length);
-
-      /*const pdfBlob = new Blob([pdfArrayBuffer], { type: 'application/pdf' });
-      console.log('PDF blob size:', pdfBlob.size);*/
 
       const fileName = `guia-${Date.now()}.pdf`;
       const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-      // Convertir blob a base64 para guardarlo
 
       await FileSystem.writeAsStringAsync(fileUri, base64data, {
         encoding: "base64",
@@ -180,12 +219,20 @@ const GuiaFormulario = ({ route, navigation }) => {
         await Sharing.shareAsync(fileUri, { mimeType: "application/pdf" });
       }
 
-      Alert.alert("Éxito", "PDF generado y listo para compartir.", [
-        { text: "OK", onPress: () => navigation.goBack() },
-      ]);
+      Alert.alert(
+        "Éxito 🎉",
+        "Guía de envío generada y lista para compartir.",
+        [
+          { text: "OK", onPress: () => navigation.popToTop() }, // Regresa al inicio o al flujo principal
+        ],
+      );
     } catch (err) {
       console.error("Error completo:", err);
-      Alert.alert("Error", err.message || "No se pudo generar el PDF");
+      Alert.alert(
+        "Error",
+        err.message ||
+          "No se pudo generar el PDF. Verifica tu conexión e inténtalo de nuevo.",
+      );
     } finally {
       setLoading(false);
     }
@@ -195,6 +242,7 @@ const GuiaFormulario = ({ route, navigation }) => {
     navigation.goBack();
   };
 
+  // El renderInput se mantiene igual
   const renderInput = (
     placeholder,
     value,
@@ -211,9 +259,45 @@ const GuiaFormulario = ({ route, navigation }) => {
       onChangeText={onChangeText}
       keyboardType={keyboardType}
       maxLength={maxLength}
-      editable={!loading}
+      // editable={!loading}
     />
   );
+
+  // Lógica para determinar si el formulario está listo para el envío
+  const isFormReady = () => {
+    // La misma lógica de campos requeridos de validarCampos
+    const camposRequeridos = [
+      { valor: remitente.nombres, nombre: "Nombres del remitente" },
+      { valor: remitente.apellidos, nombre: "Apellidos del remitente" },
+      { valor: remitente.telefono, nombre: "Teléfono del remitente" },
+      { valor: remitente.direccion.calle, nombre: "Calle del remitente" },
+      { valor: remitente.direccion.numero, nombre: "Número del remitente" },
+      {
+        valor: remitente.direccion.asentamiento,
+        nombre: "Colonia del remitente",
+      },
+      { valor: destinatario.nombres, nombre: "Nombres del destinatario" },
+      { valor: destinatario.apellidos, nombre: "Apellidos del destinatario" },
+      { valor: destinatario.telefono, nombre: "Teléfono del destinatario" },
+      { valor: destinatario.direccion.calle, nombre: "Calle del destinatario" },
+      {
+        valor: destinatario.direccion.numero,
+        nombre: "Número del destinatario",
+      },
+      {
+        valor: destinatario.direccion.asentamiento,
+        nombre: "Colonia del destinatario",
+      },
+    ];
+
+    // Verifica que todos los campos requeridos tengan un valor no vacío o no solo espacios en blanco
+    for (const campo of camposRequeridos) {
+      if (!campo.valor || String(campo.valor).trim() === "") {
+        return false; // El formulario NO está listo
+      }
+    }
+    return true; // El formulario SÍ está listo
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -235,44 +319,57 @@ const GuiaFormulario = ({ route, navigation }) => {
             </TouchableOpacity>
             <Text style={styles.title}>
               Generar guía de envío{"\n"}
-              <Text style={styles.subtitle}>MEXPOST</Text>
+              <Text style={styles.subtitle}>{tipoEnvio} - MEXPOST</Text>
             </Text>
           </View>
 
           {/* Resumen del envío */}
           <View style={styles.resumenContainer}>
-            <Text style={styles.sectionTitle}>Resumen del envío</Text>
+            <Text style={styles.sectionTitle}>Resumen de la compra</Text>
             <View style={styles.resumenGrid}>
               <View style={styles.resumenItem}>
-                <Text style={styles.resumenLabel}>Origen (CP)</Text>
-                <Text style={styles.resumenValue}>
-                  {datosTarifador.codigoOrigen}
-                </Text>
+                <Text style={styles.resumenLabel}>Origen</Text>
+                <Text style={styles.resumenValue}>{codigoOrigen}</Text>
               </View>
               <View style={styles.resumenItem}>
-                <Text style={styles.resumenLabel}>Destino (CP)</Text>
+                <Text style={styles.resumenLabel}>Destino</Text>
                 <Text style={styles.resumenValue}>
-                  {datosTarifador.codigoDestino}
+                  {tipoEnvio === "Nacional" ? codigoDestino : paisDestino}
                 </Text>
               </View>
               <View style={styles.resumenItem}>
                 <Text style={styles.resumenLabel}>Peso</Text>
-                <Text style={styles.resumenValue}>
-                  {datosTarifador.peso} kg
-                </Text>
+                <Text style={styles.resumenValue}>{peso} kg</Text>
               </View>
               <View style={styles.resumenItem}>
-                <Text style={styles.resumenLabel}>Dimensiones</Text>
+                <Text style={styles.resumenLabel}>Dimensiones (L×A×H)</Text>
                 <Text style={styles.resumenValue}>
-                  {datosTarifador.largo}×{datosTarifador.ancho}×
-                  {datosTarifador.alto} cm
+                  {largo}×{ancho}×{alto} cm
                 </Text>
               </View>
             </View>
             <View style={styles.costoContainer}>
-              <Text style={styles.costoLabel}>Costo total:</Text>
-              <Text style={styles.costoValue}>MXN ${datosTarifador.costo}</Text>
+              <Text style={styles.costoLabel}>Costo total pagado:</Text>
+              <Text style={styles.costoValue}>
+                {tipoEnvio === "Nacional"
+                  ? `MXN $${costoTotal}`
+                  : `USD $${costoTotal}`}
+              </Text>
             </View>
+          </View>
+
+          <View style={styles.infoBox}>
+            <Ionicons
+              name="information-circle-outline"
+              size={20}
+              color="#1e90ff"
+            />
+            <Text style={styles.infoText}>
+              Asegúrate de que la **dirección de origen** corresponda al CP **
+              {codigoOrigen}** y la **dirección de destino** a **
+              {tipoEnvio === "Nacional" ? codigoDestino : paisDestino}** para
+              evitar rechazos.
+            </Text>
           </View>
 
           {/* Formulario Remitente */}
@@ -311,7 +408,7 @@ const GuiaFormulario = ({ route, navigation }) => {
 
             <View style={styles.subsectionHeader}>
               <Ionicons name="location-outline" size={16} color="#666" />
-              <Text style={styles.subsectionTitle}>Dirección</Text>
+              <Text style={styles.subsectionTitle}>Dirección (Origen)</Text>
             </View>
 
             {renderInput(
@@ -432,7 +529,7 @@ const GuiaFormulario = ({ route, navigation }) => {
 
             <View style={styles.subsectionHeader}>
               <Ionicons name="location-outline" size={16} color="#666" />
-              <Text style={styles.subsectionTitle}>Dirección</Text>
+              <Text style={styles.subsectionTitle}>Dirección (Destino)</Text>
             </View>
 
             {renderInput(
@@ -493,9 +590,14 @@ const GuiaFormulario = ({ route, navigation }) => {
               <View style={styles.inputHalf}>
                 <TextInput
                   style={[styles.input, styles.disabledInput]}
-                  placeholder="Código Postal"
+                  placeholder="Código Postal / País"
                   placeholderTextColor="#999"
-                  value={destinatario.direccion.codigoPostal}
+                  // Muestra el CP para nacional y el País para internacional
+                  value={
+                    tipoEnvio === "Nacional"
+                      ? destinatario.direccion.codigoPostal
+                      : destinatario.direccion.pais
+                  }
                   editable={false}
                 />
               </View>
@@ -512,59 +614,99 @@ const GuiaFormulario = ({ route, navigation }) => {
               </View>
             </View>
 
-            {renderInput("Estado", destinatario.direccion.estado, (v) =>
-              setDestinatario((r) => ({
-                ...r,
-                direccion: { ...r.direccion, estado: v },
-              })),
-            )}
+            {tipoEnvio === "Nacional" &&
+              renderInput("Estado", destinatario.direccion.estado, (v) =>
+                setDestinatario((r) => ({
+                  ...r,
+                  direccion: { ...r.direccion, estado: v },
+                })),
+              )}
           </View>
 
           {/* Valor Declarado */}
           <View style={styles.formSection}>
             <View style={styles.sectionHeader}>
               <Ionicons name="cash-outline" size={20} color="#e91e63" />
-              <Text style={styles.sectionTitle}>Valor declarado</Text>
+              <Text style={styles.sectionTitle}>
+                Valor declarado (Opcional)
+              </Text>
             </View>
+            <Text style={styles.infoTextValue}>
+              Este valor se usa para calcular el seguro del envío. Ingresa el
+              valor comercial real del contenido en **
+              {tipoEnvio === "Nacional" ? "MXN" : "USD"}**.
+            </Text>
 
             {renderInput(
-              "Valor declarado (MXN)",
+              `Valor declarado (${tipoEnvio === "Nacional" ? "MXN" : "USD"})`,
               valorDeclarado,
               setValorDeclarado,
               "numeric",
             )}
           </View>
 
-          {/* Botón de generar PDF */}
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={[styles.generateButton, loading && styles.disabledButton]}
-              onPress={handleSubmit}
-              disabled={loading}
+          {}
+
+          {hasPaid ? (
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.generateButton,
+                  loading && styles.disabledButton,
+                ]}
+                onPress={handleSubmit}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons
+                      name="document-text-outline"
+                      size={20}
+                      color="#fff"
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text style={styles.generateButtonText}>
+                      Generar y Compartir Guía
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View
+              style={[
+                styles.buttonContainer,
+                !isFormReady() && {
+                  opacity: 0.5,
+                },
+              ]}
             >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <Ionicons
-                    name="document-text-outline"
-                    size={20}
-                    color="#fff"
-                    style={{ marginRight: 8 }}
-                  />
-                  <Text style={styles.generateButtonText}>
-                    Generar PDF de la guía
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
+              <CheckoutButton
+                amount={costoTotal}
+                disabled={!isFormReady()}
+                email={"cliente@example.com"}
+                profileId={profileId}
+                onPaymentSuccess={(paymentResult) => {
+                  setHasPaid(true);
+                }}
+                onPaymentError={(error) => {
+                  console.error("Error en pago:", error);
+                  Alert.alert("Error", "Hubo un problema con el pago");
+                }}
+              />
+            </View>
+          )}
+
+          {/* Botón de generar PDF */}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
 
+// Se agregó el estilo 'infoBox' y se corrigió 'subtitle' para evitar error de color.
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -592,9 +734,9 @@ const styles = StyleSheet.create({
     lineHeight: 34,
   },
   subtitle: {
-    fontSize: 28,
+    fontSize: 24, // Ajustado para que quepa bien en dos líneas
     fontWeight: "bold",
-    color: "#000",
+    color: "#e91e63", // Pink color for emphasis
   },
   resumenContainer: {
     marginHorizontal: 20,
@@ -713,6 +855,29 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "600",
+  },
+  infoBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginHorizontal: 20,
+    backgroundColor: "#e6f7ff", // Light blue background
+    borderLeftWidth: 4,
+    borderLeftColor: "#1e90ff", // Blue border
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  infoText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: "#333",
+    flexShrink: 1, // Permite que el texto se ajuste
+  },
+  infoTextValue: {
+    fontSize: 13,
+    color: "#666",
+    marginBottom: 10,
+    paddingHorizontal: 5,
   },
 });
 

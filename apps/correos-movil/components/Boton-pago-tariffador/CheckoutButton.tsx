@@ -21,6 +21,7 @@ const CheckoutButton = ({
   profileId,
   onPaymentSuccess,
   onPaymentError,
+  disabled,
 }) => {
   const IP = process.env.EXPO_PUBLIC_API_URL;
   const navigation = useNavigation<any>(); // <--- 2. OBTENER NAVEGACIÓN
@@ -163,6 +164,7 @@ const CheckoutButton = ({
         selectedCard?.id === item.id && styles.selectedCard,
       ]}
       onPress={() => setSelectedCard(item)}
+      disabled={disabled}
     >
       <View style={styles.cardInfo}>
         <Ionicons name="card" size={24} color="#DE1484" />

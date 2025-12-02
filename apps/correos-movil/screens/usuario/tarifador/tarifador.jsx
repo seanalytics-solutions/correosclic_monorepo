@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect, useRef } from "react";
 import {
   View,
@@ -23,7 +21,6 @@ import Constants from "expo-constants";
 import { useNavigation } from "@react-navigation/native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import CheckoutButton from "../../../components/Boton-pago-tariffador/CheckoutButton";
 import { ScrollView } from "react-native";
 
 const { height: screenHeight } = Dimensions.get("window");
@@ -48,8 +45,10 @@ const TarificadorMexpost = () => {
   const [loadingQuote, setLoadingQuote] = useState(false);
   const [datosEnvio, setDatosEnvio] = useState(null);
   const [cotizacionData, setCotizacionData] = useState(null);
+  // Aseguramos que 'costo' tenga un valor por defecto seguro
   const costo = cotizacionData?.costoTotal || 0;
-  const email = "cliente@example.com";
+  // No necesitamos email aquí, ya que el pago va en GuiaFormulario
+  // const email = "cliente@example.com";
   const [profileId, setProfileId] = useState(null);
   const [modalAnim] = useState(new Animated.Value(0));
   const API_URL = process.env.EXPO_PUBLIC_API_URL;
@@ -263,6 +262,37 @@ const TarificadorMexpost = () => {
     setCotizacionData(null);
   };
 
+  /**
+   * ✅ NUEVA FUNCIÓN: Navega a la pantalla de formulario/pago.
+   * Pasa todos los datos de la cotización calculada.
+   */
+  const handleProceedToForm = () => {
+    if (!cotizacionData) {
+      Alert.alert("Error", "No se encontró la cotización para continuar.");
+      return;
+    }
+
+    const navigationData = {
+      tipoEnvio: activeTab,
+      costoTotal: activeTab === "Nacional" ? costo : cotizacionData.total,
+      detallesCotizacion: {
+        peso: parseFloat(peso),
+        alto: parseFloat(alto),
+        ancho: parseFloat(ancho),
+        largo: parseFloat(largo),
+        codigoOrigen,
+        codigoDestino,
+        paisDestino: paisDestino?.name,
+        // Incluye todos los datos de la cotización que necesites en GuiaFormulario
+        ...cotizacionData,
+      },
+      profileId,
+    };
+
+    // 🛑 Navega a GuiaFormulario. La generación de PDF y el pago ocurren AQUÍ.
+    navigation.navigate("GuiaFormulario", navigationData);
+  };
+
   const handleBack = () => {
     if (showQuote) {
       setShowQuote(false);
@@ -324,7 +354,7 @@ const TarificadorMexpost = () => {
   // Calcula la posición vertical del modal
   const modalTranslateY = modalAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [400, 0], // Desliza desde 400px abajo hasta su posición
+    outputRange: [screenHeight, 0], // Desliza desde abajo hasta su posición
   });
 
   // Referencias para los campos
@@ -340,6 +370,7 @@ const TarificadorMexpost = () => {
     }
   };
 
+  // --- RENDERING ---
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -350,7 +381,13 @@ const TarificadorMexpost = () => {
       >
         {/* Header fijo */}
         <View
-          style={[styles.header, { paddingTop: Constants.statusBarHeight }]}
+          style={[
+            styles.header,
+            {
+              paddingTop:
+                Platform.OS === "android" ? Constants.statusBarHeight : 0,
+            },
+          ]}
         >
           <TouchableOpacity style={styles.backButton} onPress={handleBack}>
             <Ionicons name="arrow-back" size={24} color="#000" />
@@ -440,7 +477,7 @@ const TarificadorMexpost = () => {
               </>
             ) : (
               <TouchableOpacity
-                style={styles.input}
+                style={styles.inputTouch} // Usar un estilo diferente para el botón de país
                 onPress={() => setShowCountryModal(true)}
                 disabled={showQuote || loading}
               >
@@ -470,12 +507,13 @@ const TarificadorMexpost = () => {
                 disabled={loading}
               >
                 {loading ? (
-                  <ActivityIndicator color="#DE1484" />
+                  <ActivityIndicator color="#fff" />
                 ) : (
                   <Text style={styles.searchButtonText}>Buscar</Text>
                 )}
               </TouchableOpacity>
             )}
+            {/* El botón de búsqueda internacional está en el modal */}
           </View>
 
           {/* Results Section */}
@@ -520,6 +558,10 @@ const TarificadorMexpost = () => {
               {activeTab === "Internacional" && infoPais && (
                 <View style={styles.infoContainer}>
                   <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>País Destino:</Text>
+                    <Text style={styles.infoValue}>{paisDestino.name}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
                     <Text style={styles.infoLabel}>Zona:</Text>
                     <Text style={styles.infoValue}>{infoPais.zona}</Text>
                   </View>
@@ -544,14 +586,15 @@ const TarificadorMexpost = () => {
                       placeholderTextColor="#999"
                       value={peso}
                       onChangeText={(val) => {
-                        if (parseFloat(val) > max_peso) {
+                        const numericVal = val.replace(/[^0-9.]/g, "");
+                        if (parseFloat(numericVal) > max_peso) {
                           Alert.alert(
                             "Límite excedido",
                             `El peso máximo permitido es ${max_peso} kg. Pruebe con un valor menor.`,
                           );
                           return;
                         }
-                        setPeso(val.replace(/[^0-9.]/g, ""));
+                        setPeso(numericVal);
                       }}
                       keyboardType="decimal-pad"
                       returnKeyType="next"
@@ -569,14 +612,15 @@ const TarificadorMexpost = () => {
                       placeholderTextColor="#999"
                       value={alto}
                       onChangeText={(val) => {
-                        if (parseFloat(val) > max_alto) {
+                        const numericVal = val.replace(/[^0-9.]/g, "");
+                        if (parseFloat(numericVal) > max_alto) {
                           Alert.alert(
                             "Límite excedido",
                             `El alto máximo permitido es ${max_alto} cm. Pruebe con un valor menor.`,
                           );
                           return;
                         }
-                        setAlto(val.replace(/[^0-9.]/g, ""));
+                        setAlto(numericVal);
                       }}
                       keyboardType="decimal-pad"
                       returnKeyType="next"
@@ -594,14 +638,15 @@ const TarificadorMexpost = () => {
                       placeholderTextColor="#999"
                       value={ancho}
                       onChangeText={(val) => {
-                        if (parseFloat(val) > max_ancho) {
+                        const numericVal = val.replace(/[^0-9.]/g, "");
+                        if (parseFloat(numericVal) > max_ancho) {
                           Alert.alert(
                             "Límite excedido",
                             `El ancho máximo permitido es ${max_ancho} cm. Pruebe con un valor menor.`,
                           );
                           return;
                         }
-                        setAncho(val.replace(/[^0-9.]/g, ""));
+                        setAncho(numericVal);
                       }}
                       keyboardType="decimal-pad"
                       returnKeyType="next"
@@ -619,14 +664,15 @@ const TarificadorMexpost = () => {
                       placeholderTextColor="#999"
                       value={largo}
                       onChangeText={(val) => {
-                        if (parseFloat(val) > max_largo) {
+                        const numericVal = val.replace(/[^0-9.]/g, "");
+                        if (parseFloat(numericVal) > max_largo) {
                           Alert.alert(
                             "Límite excedido",
                             `El largo máximo permitido es ${max_largo} cm. Pruebe con un valor menor.`,
                           );
                           return;
                         }
-                        setLargo(val.replace(/[^0-9.]/g, ""));
+                        setLargo(numericVal);
                       }}
                       keyboardType="decimal-pad"
                       returnKeyType="done"
@@ -647,7 +693,7 @@ const TarificadorMexpost = () => {
                     disabled={loadingQuote}
                   >
                     {loadingQuote ? (
-                      <ActivityIndicator color="#e91e63" />
+                      <ActivityIndicator color="#fff" />
                     ) : (
                       <Text style={styles.searchButtonText}>Cotizar</Text>
                     )}
@@ -721,7 +767,7 @@ const TarificadorMexpost = () => {
                     )}
                   </View>
 
-                  {/* Costo total y botón de pago */}
+                  {/* Costo total y botón de navegación */}
                   <View style={styles.costoTotalContainer}>
                     <Text style={styles.costoTotalLabel}>Costo del envío:</Text>
                     <Text style={styles.costoTotalValue}>
@@ -731,36 +777,20 @@ const TarificadorMexpost = () => {
                     </Text>
                   </View>
 
+                  {/* ✅ SECCIÓN DEL BOTÓN DE NAVEGACIÓN (NO PAGO) */}
                   <View style={styles.paymentButtonContainer}>
-                    <CheckoutButton
-                      amount={
-                        activeTab === "Nacional" ? costo : cotizacionData.total
-                      }
-                      email={email}
-                      profileId={profileId || 115}
-                      onPaymentSuccess={(paymentResult) => {
-                        console.log("Pago exitoso:", paymentResult);
-                        navigation.navigate("GuiaFormulario", {
-                          datosTarifador: {
-                            codigoOrigen,
-                            codigoDestino,
-                            peso,
-                            alto,
-                            ancho,
-                            largo,
-                            costo:
-                              activeTab === "Nacional"
-                                ? costo
-                                : cotizacionData.total,
-                            tipoEnvio: activeTab,
-                          },
-                        });
-                      }}
-                      onPaymentError={(error) => {
-                        console.error("Error en pago:", error);
-                        Alert.alert("Error", "Hubo un problema con el pago");
-                      }}
-                    />
+                    <Text style={styles.continuePaymentMessage}>
+                      **Continúe** para llenar los datos de envío y **realizar
+                      el pago** en la siguiente pantalla.
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.proceedButton}
+                      onPress={handleProceedToForm}
+                    >
+                      <Text style={styles.proceedButtonText}>
+                        Continuar para Pagar
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               )}
@@ -778,9 +808,7 @@ const TarificadorMexpost = () => {
           animationType="none"
           onRequestClose={() => setShowCountryModal(false)}
         >
-          <View
-            style={[styles.modalOverlay, { backgroundColor: "transparent" }]}
-          >
+          <View style={[styles.modalOverlay]}>
             <Animated.View
               style={[
                 styles.modalContainer,
@@ -804,7 +832,7 @@ const TarificadorMexpost = () => {
                 keyExtractor={(item) => item.id.toString()}
                 renderItem={renderCountryItem}
                 ListEmptyComponent={() => (
-                  <Text style={{ padding: 20, textAlign: "center" }}>
+                  <Text style={styles.modalListEmptyText}>
                     Cargando países...
                   </Text>
                 )}
@@ -863,7 +891,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 28,
     fontWeight: "bold",
-    color: "#000",
+    color: "#e91e63", // Pink color for emphasis
   },
   scrollView: {
     flex: 1,
@@ -878,10 +906,13 @@ const styles = StyleSheet.create({
     marginTop: 15,
     marginBottom: 20,
     backgroundColor: "#fff",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#eee",
   },
   tabContainerWithBorder: {
-    borderWidth: 2,
-    borderColor: "#f0f0f0",
+    borderWidth: 1, // Reducido para que se vea menos prominente cuando hay resultados
+    borderColor: "#eee",
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,
@@ -894,283 +925,296 @@ const styles = StyleSheet.create({
     borderBottomColor: "transparent",
   },
   activeTab: {
-    borderBottomColor: "#000",
+    borderBottomColor: "#e91e63", // Active tab indicator color
   },
   tabText: {
     fontSize: 16,
-    color: "#999",
-    fontWeight: "500",
+    color: "#888",
+    fontWeight: "600",
   },
   activeTabText: {
     color: "#000",
-    fontWeight: "600",
   },
   formContainer: {
-    paddingHorizontal: 20,
-    backgroundColor: "#fff",
-    marginBottom: 20,
+    marginHorizontal: 20,
+    paddingVertical: 10,
   },
   formContainerWithBorder: {
-    borderWidth: 2,
-    borderColor: "#f0f0f0",
-    borderRadius: 8,
-    marginHorizontal: 20,
-    padding: 10,
-    marginBottom: 15,
+    // No queremos un borde alrededor del form cuando ya hay cotización
   },
   input: {
-    backgroundColor: "#f5f5f5",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    fontSize: 16,
+    height: 50,
+    borderColor: "#ddd",
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 15,
     marginBottom: 15,
+    fontSize: 16,
     color: "#000",
+    backgroundColor: "#f9f9f9",
+    flex: 1, // Necesario para View estilo inputContainer
+  },
+  inputTouch: {
+    height: 50,
+    borderColor: "#ddd",
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    marginBottom: 15,
+    backgroundColor: "#f9f9f9",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-  },
-  inputContainer: {
-    position: "relative",
-    marginBottom: 15,
   },
   inputText: {
     fontSize: 16,
     flex: 1,
   },
-  inputTextFilled: {
-    color: "#000",
-  },
   inputTextPlaceholder: {
     color: "#999",
+  },
+  inputTextFilled: {
+    color: "#000",
   },
   inputIcon: {
     marginLeft: 10,
   },
-  unitLabel: {
-    position: "absolute",
-    right: 25,
-    top: "40%",
-    transform: [{ translateY: -10 }],
-    color: "#e91e63",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
   searchButton: {
     backgroundColor: "#e91e63",
-    borderRadius: 25,
-    paddingVertical: 16,
+    paddingVertical: 15,
+    borderRadius: 8,
     alignItems: "center",
-    marginTop: 10,
+    marginTop: 5,
     marginBottom: 20,
-    justifyContent: "center",
-    minHeight: 52,
   },
   disabledButton: {
-    backgroundColor: "#fff",
-    borderWidth: 2,
-    borderColor: "#e91e63",
+    backgroundColor: "#f0a6c7",
   },
   searchButtonText: {
     color: "#fff",
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: "bold",
   },
   resultsContainer: {
-    paddingHorizontal: 20,
-    backgroundColor: "#fff",
+    marginHorizontal: 20,
+    borderRadius: 10,
+    marginBottom: 20,
   },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 15,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "bold",
-    color: "#000",
+    color: "#333",
   },
   limpiarButton: {
     color: "#e91e63",
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
   },
   infoContainer: {
-    marginBottom: 25,
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#ddd",
   },
   infoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 8,
+    paddingVertical: 5,
     borderBottomWidth: 1,
     borderBottomColor: "#f0f0f0",
   },
   infoLabel: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#000",
-    flex: 1,
+    fontSize: 15,
+    color: "#555",
+    fontWeight: "600",
   },
   infoValue: {
-    fontSize: 16,
-    color: "#333",
-    flex: 1,
+    fontSize: 15,
+    color: "#000",
+    maxWidth: "60%",
     textAlign: "right",
   },
   dimensionsSection: {
-    marginTop: 25,
-    marginBottom: 30,
+    paddingVertical: 10,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  unitLabel: {
+    position: "absolute",
+    right: 15,
+    color: "#999",
+    fontSize: 16,
   },
   quoteSection: {
-    marginTop: 20,
-    paddingBottom: 30,
+    // Estilos para la sección de cotización
   },
   detallesContainer: {
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 8,
     marginBottom: 20,
-    backgroundColor: "#f8f9fa",
-    borderRadius: 12,
-    padding: 16,
+    borderWidth: 1,
+    borderColor: "#ddd",
   },
   detalleRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 8,
+    paddingVertical: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f5f5f5",
   },
   detalleLabel: {
-    fontSize: 16,
-    color: "#000",
-    flex: 1,
+    fontSize: 15,
+    color: "#555",
   },
   detalleValue: {
-    fontSize: 16,
+    fontSize: 15,
     color: "#000",
-    fontWeight: "500",
-    flex: 1,
-    textAlign: "right",
+    fontWeight: "600",
   },
   costoTotalContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    borderTopWidth: 2,
-    borderTopColor: "#e91e63",
-    borderBottomWidth: 2,
-    borderBottomColor: "#e91e63",
-    marginTop: 10,
-    marginBottom: 20,
-    backgroundColor: "#fdf2f8",
-    borderRadius: 12,
+    paddingVertical: 15,
+    paddingHorizontal: 10,
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: "#e91e63",
+    marginBottom: 15,
   },
   costoTotalLabel: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#000",
+    color: "#333",
   },
   costoTotalValue: {
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 22,
+    fontWeight: "900",
     color: "#e91e63",
   },
   paymentButtonContainer: {
+    paddingVertical: 10,
+    // Aquí es donde solía ir el CheckoutButton
+  },
+  // ✅ NUEVOS ESTILOS PARA EL BOTÓN DE NAVEGACIÓN
+  proceedButton: {
+    backgroundColor: "#1e90ff", // Color azul para la acción
+    paddingVertical: 15,
+    borderRadius: 8,
+    alignItems: "center",
     marginTop: 15,
-    marginBottom: Platform.OS === "android" ? 25 : 15,
+  },
+  proceedButtonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  continuePaymentMessage: {
+    color: "#333",
+    fontSize: 15,
+    textAlign: "center",
+    marginTop: 5,
+    fontWeight: "500",
+    paddingHorizontal: 10,
   },
   bottomSpacer: {
-    height: Platform.OS === "android" ? 50 : 20,
+    height: 50,
   },
-  // Modal styles
+  // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: "transparent",
     justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContainer: {
     backgroundColor: "#fff",
-    borderRadius: 10,
-    paddingBottom: 20,
-    width: "100%",
-    height: "95%",
-    overflow: "hidden",
+    height: screenHeight * 0.7,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+  },
+  modalShadow: {
+    // Sombra para Android e iOS
+    elevation: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -5 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 20,
+    paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: "#f0f0f0",
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "bold",
     color: "#000",
-  },
-  modalShadow: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 16,
   },
   modalCloseButton: {
     padding: 5,
   },
   countryItem: {
-    paddingHorizontal: 20,
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: "#eee",
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#fff",
   },
   countryItemSelected: {
-    backgroundColor: "#fde7f3",
-    borderLeftWidth: 4,
-    borderLeftColor: "#e91e63",
+    backgroundColor: "#fce4ec", // Light pink background for selection
+    borderRadius: 5,
+    paddingHorizontal: 10,
   },
   countryText: {
     fontSize: 16,
-    color: "#000",
-    flex: 1,
+    color: "#333",
   },
   countryTextSelected: {
     fontWeight: "bold",
     color: "#e91e63",
   },
+  modalListEmptyText: {
+    textAlign: "center",
+    marginTop: 50,
+    color: "#999",
+  },
   floatingButtonContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingBottom: 20,
+    padding: 20,
+    borderTopWidth: 1,
+    borderColor: "#f0f0f0",
     backgroundColor: "#fff",
   },
   floatingButton: {
     backgroundColor: "#e91e63",
-    borderRadius: 30,
-    paddingVertical: 14,
-    paddingHorizontal: 40,
-    elevation: 5,
-    shadowColor: "#e91e63",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    borderWidth: 2,
-    borderColor: "#e91e63",
+    paddingVertical: 15,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  floatingButtonDisabled: {
+    backgroundColor: "#f0a6c7",
   },
   floatingButtonText: {
     color: "#fff",
     fontSize: 18,
-    fontWeight: "600",
-  },
-  floatingButtonDisabled: {
-    backgroundColor: "#e91e63",
-    borderColor: "#e91e63",
-    opacity: 0.5,
+    fontWeight: "bold",
   },
 });
 
