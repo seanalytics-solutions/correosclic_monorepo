@@ -41,6 +41,7 @@ async function setupNestApp(expressApp: express.Express): Promise<any> {
         'http://localhost:3002',
         'https://correos-mexico-gob.store',
         'https://admin.correos-mexico-gob.store',
+        'https://https://www.correos-mexico-gob.store',
       ],
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],

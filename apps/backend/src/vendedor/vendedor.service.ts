@@ -12,7 +12,37 @@ export class VendedorService {
   constructor(private prisma: PrismaService) {}
 
   async crearSolicitud(solicitud: SolicitudDto) {
-    console.log('📝 Creando solicitud:', solicitud);
+    console.log('📝 ========== CREANDO SOLICITUD ==========');
+    console.log('📝 Solicitud completa:', JSON.stringify(solicitud, null, 2));
+    console.log('📝 userId recibido:', solicitud.userId);
+    console.log('📝 Tipo de userId:', typeof solicitud.userId);
+    console.log('📝 userId convertido a Number:', Number(solicitud.userId));
+
+    // Verificar si el usuario existe antes de crear
+    const usuarioExiste = await this.prisma.usuarios.findUnique({
+      where: { id: Number(solicitud.userId) },
+    });
+    console.log('🔍 ¿Usuario existe?:', usuarioExiste ? 'SÍ' : 'NO');
+
+    if (usuarioExiste) {
+      console.log('👤 Usuario encontrado:', {
+        id: usuarioExiste.id,
+        correo: usuarioExiste.correo,
+      });
+    } else {
+      // Buscar si es un profileId
+      const profileExiste = await this.prisma.profile.findUnique({
+        where: { id: Number(solicitud.userId) },
+        include: { Usuarios: true },
+      });
+      console.log('🔍 ¿Es un profileId?:', profileExiste ? 'SÍ' : 'NO');
+      if (profileExiste) {
+        console.log('👤 Profile encontrado:', {
+          profileId: profileExiste.id,
+          userId: profileExiste.usuarioId,
+        });
+      }
+    }
 
     const resultado = await this.prisma.solicitudVendedor.create({
       data: {
@@ -21,6 +51,7 @@ export class VendedorService {
       },
     });
     console.log('✅ Solicitud creada:', resultado);
+    console.log('📝 ==========================================');
 
     return resultado;
   }
