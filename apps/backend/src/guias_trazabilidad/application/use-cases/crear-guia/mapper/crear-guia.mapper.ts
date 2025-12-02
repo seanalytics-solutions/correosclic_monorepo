@@ -108,6 +108,7 @@ export function mapperCrearGuia(
     destinatario: destinatario, // result pattern destinatario
     embalaje: embalaje, // result pattern embalaje
     valorDeclarado: valorDeclarado, // result pattern valorDeclarado
+    profileId: command.profileId,
   });
   // fin mapper
 

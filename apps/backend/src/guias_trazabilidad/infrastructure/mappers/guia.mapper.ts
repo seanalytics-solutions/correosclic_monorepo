@@ -30,6 +30,7 @@ export class GuiaMapper {
     ormEntity.fecha_creacion = guiaDomainEntity.fechaCreacion;
     ormEntity.fecha_actualizacion = guiaDomainEntity.fechaActualizacion;
     ormEntity.fecha_entrega_estimada = guiaDomainEntity.fechaEntregaEstimada;
+    ormEntity.profile_id = guiaDomainEntity.ProfileId ?? null;
 
     return ormEntity;
   }

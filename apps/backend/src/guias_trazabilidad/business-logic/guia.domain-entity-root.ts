@@ -24,6 +24,7 @@ interface Props {
   fechaEntregaEstimada: Date;
   ultimoMovimiento?: MovimientoDomainEntity; // safe
   incidencia?: IncidenciaDomainEntity;
+  profileId?: number;
 }
 
 /**
@@ -188,5 +189,9 @@ export class GuiaDomainEntity {
 
   get incidencia(): IncidenciaDomainEntity | undefined {
     return this.props.incidencia;
+  }
+
+  get ProfileId(): number | undefined {
+    return this.props.profileId;
   }
 }

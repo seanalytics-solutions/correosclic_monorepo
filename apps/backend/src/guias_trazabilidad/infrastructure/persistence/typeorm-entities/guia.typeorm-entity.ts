@@ -32,4 +32,6 @@ export class GuiaTypeormEntity {
   fecha_entrega_estimada: Date;
 
   key_pdf: string | null;
+
+  profile_id: number | null;
 }

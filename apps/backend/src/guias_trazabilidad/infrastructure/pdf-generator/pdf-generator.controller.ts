@@ -13,7 +13,14 @@ export class GuiaPdfController {
     try {
       console.log('📨 Request recibido:', JSON.stringify(body, null, 2));
 
-      const { remitente, destinatario, paquete, peso, valorDeclarado } = body;
+      const {
+        remitente,
+        destinatario,
+        paquete,
+        peso,
+        valorDeclarado,
+        profileId,
+      } = body;
 
       // Validación mejorada
       const errores: string[] = [];
@@ -85,6 +92,7 @@ export class GuiaPdfController {
         paquete,
         peso,
         valorDeclarado || 0,
+        profileId ? parseInt(profileId) : undefined,
       );
 
       if (!result) {

@@ -15,6 +15,7 @@ export class PDFGeneratorCreateService {
     paquete,
     peso,
     valorDeclarado,
+    profileId?: number,
   ) {
     console.log('🔧 Creando comando con datos:', {
       remitente,
@@ -31,6 +32,7 @@ export class PDFGeneratorCreateService {
       peso,
       valorDeclarado,
       TipoServicio.NACIONAL,
+      profileId,
     );
 
     console.log('📤 Ejecutando comando...');
