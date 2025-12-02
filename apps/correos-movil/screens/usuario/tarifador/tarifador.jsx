@@ -381,7 +381,13 @@ const TarificadorMexpost = () => {
       >
         {/* Header fijo */}
         <View
-          style={[styles.header, { paddingTop: Constants.statusBarHeight }]}
+          style={[
+            styles.header,
+            {
+              paddingTop:
+                Platform.OS === "android" ? Constants.statusBarHeight : 0,
+            },
+          ]}
         >
           <TouchableOpacity style={styles.backButton} onPress={handleBack}>
             <Ionicons name="arrow-back" size={24} color="#000" />
