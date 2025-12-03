@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     justifyContent: "flex-start",
     alignItems: "center",
-    width: moderateScale(84),
+    width: moderateScale(90),
     marginRight: moderateScale(20),
   },
   circleContainer: {

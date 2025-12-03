@@ -34,6 +34,8 @@ export default function DetalleProducto() {
     invoiceId,
   } = route.params || {};
 
+  console.log(invoiceId);
+
   const fechaStr = fecha
     ? new Date(fecha).toLocaleDateString("es-MX", {
         day: "numeric",
@@ -109,7 +111,7 @@ export default function DetalleProducto() {
             </View>
           </View>
 
-          {["Ver detalles de la factura"].map((text, idx) => (
+          {/*{["Ver detalles de la factura"].map((text, idx) => (
             <TouchableOpacity
               key={idx}
               style={styles.actionButton}
@@ -120,7 +122,7 @@ export default function DetalleProducto() {
               <Text style={styles.actionText}>{text}</Text>
               <Ionicons name="chevron-forward" size={20} color="#555" />
             </TouchableOpacity>
-          ))}
+          ))}*/}
         </View>
 
         {/* Método de pago (opcional si lo mandas) */}
