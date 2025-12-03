@@ -10,12 +10,10 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
-  Linking,
   ActivityIndicator,
   TextInput,
   Alert,
-  Platform,
+  Linking,
   FlatList,
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
@@ -34,49 +32,120 @@ export default function UbicacionScreen() {
   const [cargandoUbicacion, setCargandoUbicacion] = useState(false);
   const [textoBusqueda, setTextoBusqueda] = useState("");
   const [ubicacionUsuario, setUbicacionUsuario] = useState(null);
-  const [mapaInicializado, setMapaInicializado] = useState(false); // 🆕 Nuevo estado
+  const [mapaInicializado, setMapaInicializado] = useState(false); // 🆕 Track Map Ready
   const mapRef = useRef(null);
-  const timeoutRef = useRef(null);
-  const navigation = useNavigation();
-  const [regionVisible, setRegionVisible] = useState(null);
+  const navigation = useNavigation(); // --- Utilities ---
 
-  // Obtener ubicación del usuario al montar el componente
-  useEffect(() => {
-    solicitarPermisoUbicacion();
-  }, []);
+  const calcularDistancia = (coord1, coord2) => {
+    const R = 6371; // Radio de la Tierra en km
+    const dLat = ((coord2.latitude - coord1.latitude) * Math.PI) / 180;
+    const dLon = ((coord2.longitude - coord1.longitude) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((coord1.latitude * Math.PI) / 180) *
+        Math.cos((coord2.latitude * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
 
-  // Cuando ya se tenga la ubicación, cargar sucursales
-  useEffect(() => {
-    if (ubicacionUsuario) {
-      obtenerSucursales();
-    }
-  }, [ubicacionUsuario]);
+  const ordenarPorDistancia = (sucursales, ubicacion) => {
+    return sucursales
+      .map((sucursal) => {
+        // Manejar el caso donde las coordenadas no existen
+        if (
+          !sucursal.coordenadas?.latitude ||
+          !sucursal.coordenadas?.longitude
+        ) {
+          return { ...sucursal, distancia: Infinity };
+        }
+        return {
+          ...sucursal,
+          distancia: calcularDistancia(ubicacion, sucursal.coordenadas),
+        };
+      })
+      .sort((a, b) => a.distancia - b.distancia);
+  }; // --- Data Fetching ---
 
-  const solicitarPermisoUbicacion = async () => {
+  const obtenerSucursales = async (query = "") => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
+      setCargandoBusqueda(query !== "");
 
-      if (status !== "granted") {
-        Alert.alert(
-          "Permisos de ubicación",
-          "Para mostrar las sucursales cercanas, necesitamos acceso a tu ubicación.",
-          [
-            { text: "Cancelar", style: "cancel" },
-            { text: "Configuración", onPress: () => Linking.openSettings() },
-          ],
-        );
-        // 🆕 Cargar sucursales sin ubicación
-        await obtenerSucursales();
-        return;
+      const url = query
+        ? `${IP}/api/oficinas/buscar/${encodeURIComponent(query)}`
+        : `${IP}/api/oficinas`;
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error("Error al cargar oficinas");
       }
 
-      await obtenerUbicacionActual();
+      const data = await response.json(); // Transformar y Deduplicar datos
+
+      const dataDeduplicada = [];
+      const domiciliosVistos = new Set();
+
+      data.forEach((item) => {
+        const domicilioNormalizado = item.domicilio
+          ?.toLowerCase()
+          .replace(/\s+/g, " ")
+          .trim();
+        const coordenadas = {
+          latitude: parseFloat(item.latitud),
+          longitude: parseFloat(item.longitud),
+        };
+
+        if (
+          domicilioNormalizado &&
+          !domiciliosVistos.has(domicilioNormalizado) &&
+          !isNaN(coordenadas.latitude) &&
+          !isNaN(coordenadas.longitude)
+        ) {
+          // ⚠️ Validar coordenadas antes de añadir
+          domiciliosVistos.add(domicilioNormalizado);
+          dataDeduplicada.push({ ...item, coordenadas });
+        }
+      }); // Ordenar por distancia si hay ubicación del usuario y no es una búsqueda
+
+      let sucursalesOrdenadas = dataDeduplicada;
+      if (ubicacionUsuario && query === "") {
+        sucursalesOrdenadas = ordenarPorDistancia(
+          dataDeduplicada,
+          ubicacionUsuario,
+        );
+      }
+
+      setSucursales(sucursalesOrdenadas); // Guardar datos originales solo en la primera carga
+
+      if (query === "") {
+        setSucursalesOriginales(sucursalesOrdenadas);
+      } // Seleccionar la primera sucursal si es una búsqueda y hay resultados
+
+      if (query !== "") {
+        setSucursalSeleccionada(
+          sucursalesOrdenadas.length > 0 ? sucursalesOrdenadas[0] : null,
+        );
+      } else if (
+        sucursalSeleccionada &&
+        !sucursalesOrdenadas.find(
+          (s) => s.id_oficina === sucursalSeleccionada.id_oficina,
+        )
+      ) {
+        // Deseleccionar si la sucursal ya no está en la lista (e.g., al limpiar búsqueda)
+        setSucursalSeleccionada(null);
+      }
     } catch (error) {
-      console.error("Error al solicitar permisos:", error);
-      // 🆕 Cargar sucursales sin ubicación en caso de error
-      await obtenerSucursales();
+      console.error("Error al obtener sucursales:", error);
+      setSucursales([]);
+      setSucursalSeleccionada(null);
+      Alert.alert("Error de Conexión", "No se pudieron cargar las sucursales.");
+    } finally {
+      setCargando(false);
+      setCargandoBusqueda(false);
     }
-  };
+  }; // --- Location Handling ---
 
   const obtenerUbicacionActual = async () => {
     try {
@@ -91,9 +160,8 @@ export default function UbicacionScreen() {
         longitude: location.coords.longitude,
       };
 
-      setUbicacionUsuario(coordenadas);
+      setUbicacionUsuario(coordenadas); // Reordenar sucursales si ya existen
 
-      // 🆕 Si ya tenemos sucursales cargadas, reordenarlas por distancia
       if (sucursalesOriginales.length > 0) {
         const sucursalesOrdenadas = ordenarPorDistancia(
           sucursalesOriginales,
@@ -112,271 +180,41 @@ export default function UbicacionScreen() {
     }
   };
 
-  const calcularDistancia = (coord1, coord2) => {
-    const R = 6371;
-    const dLat = ((coord2.latitude - coord1.latitude) * Math.PI) / 180;
-    const dLon = ((coord2.longitude - coord1.longitude) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((coord1.latitude * Math.PI) / 180) *
-        Math.cos((coord2.latitude * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
-
-  const ordenarPorDistancia = (sucursales, ubicacion) => {
-    return sucursales
-      .map((sucursal) => ({
-        ...sucursal,
-        distancia: calcularDistancia(ubicacion, sucursal.coordenadas),
-      }))
-      .sort((a, b) => a.distancia - b.distancia);
-  };
-
-  // 🚀 MÉTODO OPTIMIZADO - Una sola URL para todas las búsquedas
-  const obtenerSucursales = async (query = "") => {
+  const solicitarPermisoUbicacion = async () => {
     try {
-      setCargandoBusqueda(query !== "");
-
-      const url = query
-        ? `${IP}/api/oficinas/buscar/${encodeURIComponent(query)}`
-        : `${IP}/api/oficinas`;
-
-      const response = await fetch(url);
-      console.log(response);
-
-      if (!response.ok) {
-        throw new Error("Error al cargar oficinas");
-      }
-
-      const data = await response.json();
-
-      // DEDUPLICACIÓN ADICIONAL en frontend (por si acaso)
-      const dataDeduplicada = [];
-      const domiciliosVistos = new Set();
-
-      data.forEach((item) => {
-        const domicilioNormalizado = item.domicilio
-          ?.toLowerCase()
-          .replace(/\s+/g, " ")
-          .trim();
-        if (
-          domicilioNormalizado &&
-          !domiciliosVistos.has(domicilioNormalizado)
-        ) {
-          domiciliosVistos.add(domicilioNormalizado);
-          dataDeduplicada.push(item);
-        }
-      });
-
-      // Transformar datos
-      const dataTransformada = dataDeduplicada.map((item) => ({
-        ...item,
-        coordenadas: {
-          latitude: parseFloat(item.latitud),
-          longitude: parseFloat(item.longitud),
-        },
-      }));
-
-      // Ordenar por distancia si hay ubicación del usuario
-      let sucursalesOrdenadas = dataTransformada;
-      if (ubicacionUsuario && query === "") {
-        sucursalesOrdenadas = ordenarPorDistancia(
-          dataTransformada,
-          ubicacionUsuario,
-        );
-      }
-
-      setSucursales(sucursalesOrdenadas);
-
-      // Guardar datos originales solo en la primera carga
-      if (query === "") {
-        setSucursalesOriginales(sucursalesOrdenadas);
-      }
-
-      // 🆕 CAMBIO PRINCIPAL: No seleccionar automáticamente ninguna sucursal al cargar inicialmente
-      if (query !== "") {
-        // Solo seleccionar sucursal cuando hay una búsqueda específica
-        if (sucursalesOrdenadas.length > 0) {
-          setSucursalSeleccionada(sucursalesOrdenadas[0]);
-        } else {
-          setSucursalSeleccionada(null);
-        }
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      setSucursales([]);
-      setSucursalSeleccionada(null);
-    } finally {
-      setCargando(false);
-      setCargandoBusqueda(false);
-    }
-  };
-
-  // 🚀 BÚSQUEDA SIMPLIFICADA - Con una sola alerta cuando no encuentra resultados
-  const buscarSucursales = async (query) => {
-    const texto = query.trim();
-
-    if (texto === "") {
-      setSucursales(sucursalesOriginales);
-      setSucursalSeleccionada(null); // 🆕 No seleccionar sucursal al limpiar búsqueda
-      return;
-    }
-
-    try {
-      setCargandoBusqueda(true);
-
-      const url = `${IP}/api/oficinas/buscar/${encodeURIComponent(texto)}`;
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error("Error de conexión");
-      }
-
-      const data = await response.json();
-
-      // DEDUPLICACIÓN
-      const dataDeduplicada = [];
-      const domiciliosVistos = new Set();
-
-      data.forEach((item) => {
-        const domicilioNormalizado = item.domicilio
-          ?.toLowerCase()
-          .replace(/\s+/g, " ")
-          .trim();
-        if (
-          domicilioNormalizado &&
-          !domiciliosVistos.has(domicilioNormalizado)
-        ) {
-          domiciliosVistos.add(domicilioNormalizado);
-          dataDeduplicada.push(item);
-        }
-      });
-
-      const dataTransformada = dataDeduplicada.map((item) => ({
-        ...item,
-        coordenadas: {
-          latitude: parseFloat(item.latitud),
-          longitude: parseFloat(item.longitud),
-        },
-      }));
-
-      let sucursalesOrdenadas = dataTransformada;
-      if (ubicacionUsuario) {
-        sucursalesOrdenadas = ordenarPorDistancia(
-          dataTransformada,
-          ubicacionUsuario,
-        );
-      }
-
-      if (sucursalesOrdenadas.length > 0) {
-        setSucursales(sucursalesOrdenadas);
-        setSucursalSeleccionada(sucursalesOrdenadas[0]);
-
-        setTimeout(() => {
-          centrarEnSucursal(sucursalesOrdenadas[0]);
-        }, 300);
-
-        if (sucursalesOrdenadas.length > 1) {
-          setTimeout(() => {
-            ajustarVistaParaTodosLosResultados(sucursalesOrdenadas);
-          }, 500);
-        }
-      } else {
-        // Mostrar alerta pero mantener sucursales originales
-        Alert.alert(
-          "Sin resultados",
-          `No se encontraron sucursales para "${texto}"`,
-          [{ text: "OK", style: "default" }],
-        );
-
-        setSucursales(sucursalesOriginales);
-        setSucursalSeleccionada(null); // 🆕 No seleccionar sucursal
-      }
-    } catch (error) {
-      console.error("Error en búsqueda:", error);
-
-      // Restaurar sucursales originales en caso de error
-      setSucursales(sucursalesOriginales);
-      setSucursalSeleccionada(null); // 🆕 No seleccionar sucursal
-
-      Alert.alert("Error", "Error de conexión. Verifica tu internet.", [
-        { text: "OK", style: "default" },
-      ]);
-    } finally {
-      setCargandoBusqueda(false);
-    }
-  };
-
-  const limpiarBusqueda = () => {
-    setTextoBusqueda("");
-    setSucursales(sucursalesOriginales);
-    setSucursalSeleccionada(null); // 🆕 No seleccionar sucursal al limpiar
-  };
-
-  // 🎯 BOTÓN DE UBICACIÓN CORREGIDO - No interfiere con selección de sucursal
-  const buscarCercanas = async () => {
-    try {
-      setCargandoUbicacion(true);
-
-      // Solicitar permisos si no están concedidos
       const { status } = await Location.requestForegroundPermissionsAsync();
 
       if (status !== "granted") {
         Alert.alert(
-          "Permisos requeridos",
-          "Necesitamos acceso a tu ubicación para encontrar sucursales cercanas.",
-          [{ text: "OK" }],
-        );
+          "Permisos de ubicación",
+          "Para mostrar las sucursales cercanas, necesitamos acceso a tu ubicación.",
+          [
+            { text: "Cancelar", style: "cancel" },
+            { text: "Configuración", onPress: () => Linking.openSettings() },
+          ],
+        ); // Cargar sucursales sin ubicación
+        await obtenerSucursales();
         return;
       }
 
-      // Obtener ubicación actual (precisa y con timeout)
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-        timeout: 15000,
-      });
-
-      const nuevaUbicacion = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      };
-
-      // Guardar ubicación del usuario en el estado
-      setUbicacionUsuario(nuevaUbicacion);
-
-      // Limpiar búsqueda previa
-      setTextoBusqueda("");
-
-      // Ordenar sucursales por cercanía
-      if (sucursalesOriginales.length > 0) {
-        const sucursalesOrdenadas = ordenarPorDistancia(
-          sucursalesOriginales,
-          nuevaUbicacion,
-        );
-        setSucursales(sucursalesOrdenadas);
-      }
-
-      // 🆕 No seleccionar sucursal automáticamente, solo centrar en usuario
-      setSucursalSeleccionada(null);
-
-      // CENTRAR EN LA UBICACIÓN DEL USUARIO
-      setTimeout(() => {
-        centrarEnUbicacionUsuario(nuevaUbicacion);
-      }, 500);
+      await obtenerUbicacionActual();
     } catch (error) {
-      console.error("Error al obtener ubicación:", error);
-      Alert.alert(
-        "Error de ubicación",
-        "No se pudo obtener tu ubicación. Verifica que el GPS esté activado.",
-        [{ text: "OK" }],
-      );
-    } finally {
-      setCargandoUbicacion(false);
+      console.error("Error al solicitar permisos:", error);
+      await obtenerSucursales();
     }
-  };
+  }; // Obtener ubicación y sucursales al montar
+
+  useEffect(() => {
+    solicitarPermisoUbicacion();
+  }, []); // Cuando se obtiene la ubicación (en la primera carga o por el botón de cerca)
+
+  useEffect(() => {
+    if (ubicacionUsuario && !cargando) {
+      // Centrar el mapa en la ubicación del usuario después de la carga inicial
+      centrarEnUbicacionUsuario(ubicacionUsuario);
+    }
+  }, [ubicacionUsuario, cargando]); // --- Map Interaction Callbacks ---
+  // 🔑 Usamos useCallback para estabilizar la función y evitar re-renders innecesarios
 
   const centrarEnSucursal = useCallback((sucursal) => {
     if (mapRef.current && sucursal?.coordenadas) {
@@ -389,8 +227,7 @@ export default function UbicacionScreen() {
     }
   }, []);
 
-  // 🆕 Nueva función específica para centrar en ubicación del usuario sin seleccionar sucursal
-  const centrarEnUbicacionUsuario = (coords) => {
+  const centrarEnUbicacionUsuario = useCallback((coords) => {
     if (!coords.latitude || !coords.longitude) return;
 
     if (mapRef.current) {
@@ -398,51 +235,46 @@ export default function UbicacionScreen() {
         {
           latitude: coords.latitude,
           longitude: coords.longitude,
-          latitudeDelta: 0.01, // Un poco más amplio para mostrar sucursales cercanas
-          longitudeDelta: 0.01,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
         },
         800,
       );
     }
-  };
+  }, []);
 
   const ajustarVistaParaTodosLosResultados = (sucursales) => {
     if (!mapRef.current || sucursales.length === 0) return;
 
-    let minLat = sucursales[0].coordenadas.latitude;
-    let maxLat = sucursales[0].coordenadas.latitude;
-    let minLng = sucursales[0].coordenadas.longitude;
-    let maxLng = sucursales[0].coordenadas.longitude;
+    const coords = sucursales
+      .filter((s) => s.coordenadas && !isNaN(s.coordenadas.latitude)) // Filtrar coordenadas inválidas
+      .map((s) => s.coordenadas);
 
-    sucursales.forEach((sucursal) => {
-      const { latitude, longitude } = sucursal.coordenadas;
-      minLat = Math.min(minLat, latitude);
-      maxLat = Math.max(maxLat, latitude);
-      minLng = Math.min(minLng, longitude);
-      maxLng = Math.max(maxLng, longitude);
+    if (coords.length === 0) return;
+
+    mapRef.current.fitToCoordinates(coords, {
+      edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+      animated: true,
     });
+  }; // --- User Actions ---
 
-    const centerLat = (minLat + maxLat) / 2;
-    const centerLng = (minLng + maxLng) / 2;
-    const deltaLat = Math.max(maxLat - minLat, 0.01) * 1.2;
-    const deltaLng = Math.max(maxLng - minLng, 0.01) * 1.2;
+  const buscarSucursales = async (query) => {
+    const texto = query.trim();
 
-    mapRef.current.animateToRegion(
-      {
-        latitude: centerLat,
-        longitude: centerLng,
-        latitudeDelta: deltaLat,
-        longitudeDelta: deltaLng,
-      },
-      1000,
-    );
-  };
+    if (texto === "") {
+      setSucursales(sucursalesOriginales);
+      setSucursalSeleccionada(null);
+      return;
+    }
 
-  const abrirIndicaciones = () => {
-    if (sucursalSeleccionada?.coordenadas) {
-      const { latitude, longitude } = sucursalSeleccionada.coordenadas;
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
-      Linking.openURL(url);
+    await obtenerSucursales(texto); // Centrar el mapa en los resultados
+
+    if (mapRef.current) {
+      if (sucursales.length === 1) {
+        centrarEnSucursal(sucursales[0]);
+      } else if (sucursales.length > 1) {
+        ajustarVistaParaTodosLosResultados(sucursales);
+      }
     }
   };
 
@@ -450,13 +282,77 @@ export default function UbicacionScreen() {
     const texto = textoBusqueda.trim();
     if (texto === "") {
       setSucursales(sucursalesOriginales);
-      setSucursalSeleccionada(null); // 🆕 No seleccionar sucursal
+      setSucursalSeleccionada(null);
     } else {
       buscarSucursales(texto);
     }
   };
 
-  // 🆕 Función para obtener la región inicial del mapa
+  const limpiarBusqueda = () => {
+    setTextoBusqueda("");
+    setSucursales(sucursalesOriginales);
+    setSucursalSeleccionada(null);
+  }; // 🔑 Usamos useCallback para estabilizar la función
+
+  const buscarCercanas = useCallback(async () => {
+    try {
+      setCargandoUbicacion(true);
+
+      const { status } = await Location.requestForegroundPermissionsAsync();
+
+      if (status !== "granted") {
+        Alert.alert(
+          "Permisos requeridos",
+          "Necesitamos acceso a tu ubicación para encontrar sucursales cercanas.",
+          [{ text: "OK" }],
+        );
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+        timeout: 15000,
+      });
+
+      const nuevaUbicacion = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
+
+      setUbicacionUsuario(nuevaUbicacion);
+      setTextoBusqueda("");
+      setSucursalSeleccionada(null); // Ordenar sucursales por cercanía
+
+      if (sucursalesOriginales.length > 0) {
+        const sucursalesOrdenadas = ordenarPorDistancia(
+          sucursalesOriginales,
+          nuevaUbicacion,
+        );
+        setSucursales(sucursalesOrdenadas);
+      } // Centrar en la ubicación del usuario (se hará en el useEffect)
+
+      centrarEnUbicacionUsuario(nuevaUbicacion);
+    } catch (error) {
+      console.error("Error al obtener ubicación:", error);
+      Alert.alert(
+        "Error de ubicación",
+        "No se pudo obtener tu ubicación. Verifica que el GPS esté activado.",
+        [{ text: "OK" }],
+      );
+    } finally {
+      setCargandoUbicacion(false);
+    }
+  }, [sucursalesOriginales, centrarEnUbicacionUsuario]);
+
+  const abrirIndicaciones = () => {
+    if (sucursalSeleccionada?.coordenadas) {
+      const { latitude, longitude } = sucursalSeleccionada.coordenadas; // Corregir la URL para Google Maps
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+      Linking.openURL(url);
+    }
+  }; // --- Computed Values ---
+  // Región inicial del mapa
+
   const obtenerRegionInicial = useMemo(() => {
     if (ubicacionUsuario) {
       return {
@@ -465,38 +361,23 @@ export default function UbicacionScreen() {
         latitudeDelta: 0.05,
         longitudeDelta: 0.05,
       };
-    }
-    // región por defecto (CDMX, por ejemplo)
+    } // Región por defecto (CDMX)
     return {
       latitude: 19.4326,
       longitude: -99.1332,
       latitudeDelta: 0.1,
       longitudeDelta: 0.1,
     };
-  }, [ubicacionUsuario]);
+  }, [ubicacionUsuario]); // --- Render Logic ---
+  // Pantalla de carga inicial
 
-  const sucursalesFiltradas = useMemo(() => {
-    if (!regionVisible) return sucursales;
-
-    const { latitude, longitude, latitudeDelta, longitudeDelta } =
-      regionVisible;
-    const minLat = latitude - latitudeDelta / 2;
-    const maxLat = latitude + latitudeDelta / 2;
-    const minLng = longitude - longitudeDelta / 2;
-    const maxLng = longitude + longitudeDelta / 2;
-
-    return sucursales.filter((s) => {
-      const lat = s.coordenadas?.latitude;
-      const lng = s.coordenadas?.longitude;
-      return lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
-    });
-  }, [sucursales, regionVisible]);
-
-  // 🌀 Pantalla de carga inicial
   if (cargando) {
     return (
       <View style={styles.spinnerContainer}>
         <ActivityIndicator size="large" color="#DE1484" />
+        <Text style={{ marginTop: 10, color: "#666" }}>
+          Cargando sucursales...
+        </Text>
       </View>
     );
   }
@@ -509,15 +390,12 @@ export default function UbicacionScreen() {
           { paddingTop: Constants.statusBarHeight + 10 },
         ]}
       >
-        {/* Flecha de regresar */}
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
           <MaterialIcons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-
-        {/* Input de búsqueda */}
         <View style={styles.searchInputContainer}>
           <Feather
             name="search"
@@ -551,8 +429,6 @@ export default function UbicacionScreen() {
             </TouchableOpacity>
           )}
         </View>
-
-        {/* Botón ubicación */}
         <TouchableOpacity
           style={styles.locationButton}
           onPress={buscarCercanas}
@@ -565,28 +441,30 @@ export default function UbicacionScreen() {
           )}
         </TouchableOpacity>
       </View>
-
-      {/* Mapa */}
       {!cargando && sucursales.length > 0 && (
         <MapView
           ref={mapRef}
           style={styles.mapa}
           initialRegion={obtenerRegionInicial}
           showsUserLocation={!!ubicacionUsuario}
-          showsMyLocationButton={false}
-          onRegionChangeComplete={setRegionVisible} // 👈 Guarda la región visible
+          showsMyLocationButton={false} // ❌ ELIMINADO: onRegionChangeComplete={setRegionVisible}
+          // Para evitar el loop de re-renders y crashes durante el zoom/pan.
+          onMapReady={() => setMapaInicializado(true)} // 🆕 Marcar el mapa como listo
         >
-          {sucursalesFiltradas.map((s) => (
-            <Marker
-              key={s.id_oficina}
+          {sucursales.map((s) => (
+            <Marker // 🔑 Clave robusta para evitar errores de React/Mapas
+              key={s.id_oficina?.toString() || s.domicilio}
               coordinate={s.coordenadas}
-              pinColor="#DE1484"
+              pinColor={
+                sucursalSeleccionada?.id_oficina === s.id_oficina
+                  ? "#0066ff"
+                  : "#DE1484"
+              } // Cambiar color si está seleccionada
               onPress={() => centrarEnSucursal(s)}
             />
           ))}
         </MapView>
       )}
-
       {/* Información de sucursal seleccionada */}
       {sucursalSeleccionada && (
         <View style={styles.infoContainer}>
@@ -594,7 +472,7 @@ export default function UbicacionScreen() {
             <MaterialIcons name="location-on" size={28} color="#DE1484" />
             <View style={{ flex: 1 }}>
               <Text style={styles.nombre}>
-                {sucursalSeleccionada.nombre_cuo}
+                {sucursalSeleccionada.nombre_cuo || "Sucursal"}
               </Text>
               <Text style={styles.direccion}>
                 {sucursalSeleccionada.domicilio}
@@ -602,13 +480,12 @@ export default function UbicacionScreen() {
               <Text style={styles.codigoPostal}>
                 CP: {sucursalSeleccionada.codigo_postal}
               </Text>
-
-              {sucursalSeleccionada.distancia && (
+              {sucursalSeleccionada.distancia !== Infinity && (
                 <Text style={styles.distancia}>
-                  📍 {sucursalSeleccionada.distancia.toFixed(1)} km de distancia
+                  📍
+                  {sucursalSeleccionada.distancia.toFixed(1)} km de distancia
                 </Text>
               )}
-
               {sucursalSeleccionada.horario_atencion && (
                 <View style={styles.infoIconRow}>
                   <Feather
@@ -618,11 +495,10 @@ export default function UbicacionScreen() {
                     style={{ marginRight: 6 }}
                   />
                   <Text style={styles.horario}>
-                    {sucursalSeleccionada.horario_atencion}
+                    {sucursalSeleccionada.horario_atencion} 
                   </Text>
                 </View>
               )}
-
               {sucursalSeleccionada.telefono && (
                 <View style={styles.infoIconRow}>
                   <FontAwesome
@@ -638,22 +514,20 @@ export default function UbicacionScreen() {
               )}
             </View>
           </View>
-
           <TouchableOpacity style={styles.boton} onPress={abrirIndicaciones}>
             <Text style={styles.botonTexto}>Obtener indicaciones</Text>
           </TouchableOpacity>
         </View>
       )}
-
       {/* Lista de sucursales */}
       {sucursales.length > 0 && (
-        <FlatList
+        <FlatList // Filtrar la seleccionada para que no aparezca duplicada
           data={sucursales.filter(
             (s) =>
               !sucursalSeleccionada ||
               s.id_oficina !== sucursalSeleccionada.id_oficina,
           )}
-          keyExtractor={(item) => item.id_oficina.toString()}
+          keyExtractor={(item) => item.id_oficina?.toString() || item.domicilio} // Clave robusta
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.sugerenciaItem}
@@ -672,7 +546,7 @@ export default function UbicacionScreen() {
                   <Text style={styles.sugerenciaCP}>
                     CP: {item.codigo_postal}
                   </Text>
-                  {item.distancia && (
+                  {item.distancia !== Infinity && (
                     <Text style={styles.sugerenciaDistancia}>
                       {item.distancia.toFixed(1)} km
                     </Text>
@@ -682,6 +556,7 @@ export default function UbicacionScreen() {
             </TouchableOpacity>
           )}
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 20 }}
         />
       )}
     </View>
@@ -746,29 +621,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
-  },
-  noResultsContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 30,
-  },
-  noResultsText: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-    marginTop: 15,
-    marginBottom: 20,
-  },
-  showAllButton: {
-    backgroundColor: "#DE1484",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  showAllButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
   },
   mapa: {
     width: "100%",
@@ -837,23 +689,13 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 16,
   },
-  sugerencias: {
-    marginTop: 12,
-    paddingHorizontal: 10,
-  },
-  sugerenciasTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 10,
-    paddingHorizontal: 4,
-  },
   sugerenciaItem: {
     flexDirection: "row",
     alignItems: "flex-start",
     backgroundColor: "#fff",
     borderRadius: 8,
     padding: 12,
+    marginHorizontal: 10,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: "#eee",
