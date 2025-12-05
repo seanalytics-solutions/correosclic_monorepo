@@ -19,7 +19,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.seanalytics.correosdemexico",
+      bundleIdentifier: "com.seanalytics.correosdemexicov2",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         CFBundleURLTypes: [
